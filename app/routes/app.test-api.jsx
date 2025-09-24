@@ -1,18 +1,17 @@
-import { json } from "@remix-run/node";
+import { Page, Layout, Card, Text } from "@shopify/polaris";
 
-// loader = GET endpoint
-export const loader = async () => {
-  return json({
-    message: "✅ Public Test API is working!",
-    time: new Date().toISOString(),
-  });
-};
-
-// action = POST endpoint
-export const action = async ({ request }) => {
-  const body = await request.formData();
-  return json({
-    message: "✅ Received POST data (no auth)",
-    data: Object.fromEntries(body),
-  });
-};
+export default function TestPage() {
+  return (
+    <Page>
+      <Layout>
+        <Layout.Section>
+          <Card sectioned>
+            <Text as="h2" variant="headingMd">
+              ✅ Public Test Page is working!
+            </Text>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
+  );
+}
