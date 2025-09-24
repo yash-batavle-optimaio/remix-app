@@ -1,5 +1,5 @@
 import { Page, Layout, Card, Text } from "@shopify/polaris";
-import { authenticate } from "../../shopify.server";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
