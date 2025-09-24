@@ -9,6 +9,8 @@ import {
   BlockStack,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
+import "@shopify/polaris/build/esm/styles.css";
+
 
 export default function AdditionalPage() {
   return (
