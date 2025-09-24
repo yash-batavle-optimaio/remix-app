@@ -25,6 +25,5 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = ["https://remix-app-rqyv.onrender.com/auth/callback"]
-
 #[build]
 #automatically_update_urls_on_dev = true
