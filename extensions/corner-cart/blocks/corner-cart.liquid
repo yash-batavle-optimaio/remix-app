@@ -1,0 +1,636 @@
+<!-- Corner Cart Button -->
+<div id="corner-cart">
+  🛒 <span id="corner-cart-count">0</span> Cart
+</div>
+
+<!-- Drawer -->
+<div id="cart-drawer" class="cart-drawer">
+  <div class="cart-drawer__content">
+    
+    <!-- Header -->
+    <div class="cart-drawer__header">
+      <h2>Cart</h2>
+      <button type="button" class="cart-drawer__close">× Close</button>
+    </div>
+
+    <!-- Expired Message -->
+    <div class="cart-drawer__body cart-tab active" data-tab="cart">
+      <div class="cart-drawer__expired">Your cart has expired</div>
+
+      <!-- Alert -->
+      <div class="cart-drawer__alert">Congratulations! You have unlocked Free Gift!</div>
+
+      <!-- Progress bar -->
+      <div class="cart-drawer__progress">
+        <div class="step done">Free Deo</div>
+        <div class="step done">Free Travel Pouch!</div>
+        <div class="step done">Free Watch!</div>
+      </div>
+
+      <!-- Items -->
+      <div class="cart-drawer__items"></div>
+
+      <!-- Complimentary Products -->
+      <div class="cart-drawer__recommendations">
+        <h3>You might also like</h3>
+        <div class="recommendations-list"></div>
+      </div>
+
+      <!-- Summary + Checkout -->
+      <div class="cart-drawer__summary-checkout">
+        <div class="cart-drawer__summary">
+          <div class="discount-row">
+            <span class="discount-label">Discount:</span>
+            <span class="discount-amount">-INR 0</span>
+          </div>
+          <div class="total-row">
+            <span class="total-label">Total:</span>
+            <span class="total-amount">INR 0</span>
+          </div>
+        </div>
+        <div class="cart-drawer__checkout">
+          <button onclick="window.location='/checkout'" class="checkout-btn">
+            Checkout <span class="checkout-icons">🅿️ GPay</span>
+          </button>
+          <p class="checkout-note">Free Gift On Orders Above ₹1250</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Offers Tab Content (empty page) -->
+    <div class="cart-drawer__body cart-tab" data-tab="offers">
+      <div class="offers-empty">
+        <p>No offers available at the moment.</p>
+      </div>
+    </div>
+
+    <!-- Footer tabs -->
+    <div class="cart-drawer__footer">
+      <button class="tab-btn active" data-target="cart">🛒 Cart</button>
+      <button class="tab-btn" data-target="offers">🎁 Offers</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Footer tabs switch
+  const tabs = document.querySelectorAll(".cart-drawer__footer .tab-btn");
+  const tabContents = document.querySelectorAll(".cart-drawer__body.cart-tab");
+
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      // switch active button
+      tabs.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      // switch tab content
+      const target = btn.dataset.target;
+      tabContents.forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.tab === target);
+      });
+    });
+  });
+});
+</script>
+
+<style>
+/* Tab system */
+.cart-drawer__body.cart-tab { display: none; }
+.cart-drawer__body.cart-tab.active { display: block; }
+
+.offers-empty {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+</style>
+
+
+<script>
+  function loadRecommendations(productId) {
+  fetch(`/recommendations/products.json?product_id=${productId}&intent=complementary&limit=4`)
+    .then(res => res.json())
+    .then(data => {
+      const container = document.querySelector(".recommendations-list");
+      if (!data.products.length) return;
+      container.innerHTML = data.products.map(p => `
+       <div class="recommendation-card">
+    <div class="rec-image">
+      <img src="${p.featured_image}" alt="${p.title}">
+    </div>
+    <div class="rec-content">
+      <p class="rec-title">${p.title}</p>
+      <p class="rec-price">₹${(p.variants[0].price/100).toLocaleString()}</p>
+      
+    </div>
+<div>
+    <button class="rec-add" data-id="${p.variants[0].id}">Add</button>
+    </div>
+  </div>
+      `).join("");
+      // Add to cart
+      container.querySelectorAll(".rec-add").forEach(btn => {
+        btn.addEventListener("click", () => {
+          fetch("/cart/add.js", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: btn.dataset.id, quantity: 1 })
+          }).then(() => updateCart());
+        });
+      });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const cornerCart = document.getElementById("corner-cart");
+  const cartDrawer = document.getElementById("cart-drawer");
+  const closeBtn = cartDrawer.querySelector(".cart-drawer__close");
+  const itemsContainer = cartDrawer.querySelector(".cart-drawer__items");
+  const totalEl = cartDrawer.querySelector(".total-amount");
+  const discountEl = cartDrawer.querySelector(".discount-amount");
+function updateCart() {
+  fetch('/cart.js')
+    .then(res => res.json())
+    .then(cart => {
+      // update bubble
+      document.getElementById("corner-cart-count").textContent = cart.item_count;
+      // render items
+      itemsContainer.innerHTML = cart.items.map(item => `
+        <div class="cart-item">
+          <div class="cart-item__image">
+            <img src="${item.image}" alt="${item.title}">
+          </div>
+          <div class="cart-item__details">
+            <div class="cart-item__top">
+              <p class="cart-item__title">${item.product_title}
+                ${item.variant_title ? `<span class="variant">${item.variant_title}</span>` : ''}
+              </p>
+              <button class="cart-item__remove" data-key="${item.key}">×</button>
+            </div>
+            <div class="cart-item__pricing">
+              ${item.original_line_price > item.final_line_price 
+                ? `<span class="compare-at">INR ${(item.original_line_price/100).toLocaleString()}</span>` : ''}
+              <span class="price">INR ${(item.final_line_price/100).toLocaleString()}</span>
+            </div>
+            <div class="cart-item__actions">
+              <button class="qty-btn" data-key="${item.key}" data-change="-1">−</button>
+              <span class="cart-item__qty">${item.quantity}</span>
+              <button class="qty-btn" data-key="${item.key}" data-change="1">+</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+      // ✅ update totals
+      totalEl.textContent = "₹" + (cart.total_price/100).toLocaleString();
+      discountEl.textContent = "– ₹" + ((cart.original_total_price - cart.total_price)/100).toLocaleString();
+      // ✅ now load recommendations
+      if (cart.items.length > 0) {
+        loadRecommendations(cart.items[0].product_id);
+      }
+      // Quantity update
+      itemsContainer.querySelectorAll(".qty-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const key = btn.dataset.key;
+          const change = parseInt(btn.dataset.change);
+          const currentQty = parseInt(btn.parentNode.querySelector(".cart-item__qty").textContent);
+          const newQty = currentQty + change;
+          if (newQty < 1) return;
+          fetch('/cart/change.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: key, quantity: newQty })
+          }).then(() => updateCart());
+        });
+      });
+      // Remove
+      itemsContainer.querySelectorAll(".cart-item__remove").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const key = btn.dataset.key;
+          fetch('/cart/change.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: key, quantity: 0 })
+          }).then(() => updateCart());
+        });
+      });
+    });
+}
+
+  function openDrawer() {
+    updateCart();
+    cartDrawer.classList.add("open");
+  }
+  cornerCart.addEventListener("click", openDrawer);
+  const headerCartIcon = document.querySelector("#cart-icon-bubble, .header__icon--cart, a[href='/cart']");
+  if (headerCartIcon) {
+    headerCartIcon.addEventListener("click", (e) => {
+      e.preventDefault();
+      openDrawer();
+    });
+  }
+  closeBtn.addEventListener("click", () => {
+    cartDrawer.classList.remove("open");
+  });
+  // Intercept add-to-cart
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const response = await originalFetch(...args);
+    try {
+      const url = args[0];
+      if (typeof url === "string" && url.includes("/cart/add")) {
+        setTimeout(openDrawer, 300);
+      }
+    } catch(e) {}
+    return response;
+  };
+  updateCart();
+});
+</script>
+
+<style>
+
+  .recommendations-list {
+    display: flex;
+  flex-direction: row;   /* row for horizontal scroll */
+  gap: 12px;
+  overflow-x: auto;      /* enable horizontal scrolling */
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory; /* smooth snap */
+}
+.recommendation-card {
+  flex: 0 0 75%;       /* fixed card width */
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+.rec-image img {
+  display: block;   /* ✅ removes bottom inline gap */
+  width: 90px;
+  height: 90px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.rec-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rec-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.rec-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #222;
+}
+.rec-add {
+  margin-top: 4px;
+  align-self: flex-start;
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+  .cart-drawer__recommendations {
+  padding: 0 12px 12px 12px;
+  background: #fff7f9;
+  border-top: 1px solid #eee;
+}
+.cart-drawer__recommendations h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+{% comment %} .recommendations-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+}
+.recommendation-card {
+  flex: 0 0 90px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  background: #fff;
+}
+.recommendation-card img {
+  width: 100%;
+  border-radius: 6px;
+}
+.rec-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 6px 0;
+}
+.rec-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #222;
+}
+.rec-add {
+  margin-top: 6px;
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+} {% endcomment %}
+  .cart-drawer{
+  padding:2%;
+  }
+/* Make items list scrollable */
+.cart-drawer__items {
+  max-height: calc(100vh - 280px); /* adjust depending on header+summary+footer height */
+  overflow-y: auto;
+  {% comment %} padding-right: 6px; /* for scroll gap */ {% endcomment %}
+}
+/* Optional: nice thin scrollbar */
+.cart-drawer__items::-webkit-scrollbar {
+  width: 6px;
+}
+.cart-drawer__items::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+  {% comment %} .cart-drawer__items{
+margin:4%;
+  } {% endcomment %}
+   .cart-drawer__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.discount-row, .total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.discount-label {
+  color: #a33;
+  font-size: 14px;
+}
+.discount-amount {
+  color: #a33;
+  font-weight: 600;
+  font-size: 14px;
+}
+.total-label {
+  font-weight: 600;
+  font-size: 15px;
+}
+.total-amount {
+  font-weight: 700;
+  font-size: 16px;
+}
+/* Drawer base */
+.cart-drawer {
+  position: fixed;
+  top: 0; right: 0;
+  width: 420px; height: 100%;
+  background: #ffe6eb; /* ✅ Soft Pink Background */
+  box-shadow: -2px 0 12px rgba(0,0,0,0.2);
+  z-index: 10000;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+.cart-drawer.open { transform: translateX(0); }
+/* Header */
+.cart-drawer__header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+.cart-drawer__header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.cart-drawer__close { background: none; border: none; font-size: 14px; cursor: pointer; }
+/* Expired message */
+.cart-drawer__expired {
+  background: #eee;
+  text-align: center;
+  padding: 6px;
+  font-size: 13px;
+  color: #555;
+}
+/* Progress bar */
+.cart-drawer__alert {
+  background: #fcecec;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: #a33;
+}
+.cart-drawer__progress {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.cart-drawer__progress .step {
+  flex: 1; text-align: center;
+  border-bottom: 3px solid #ddd;
+  padding-bottom: 4px;
+}
+.cart-drawer__progress .done {
+  border-color: #d48b8b;
+  font-weight: 600;
+  color: #222;
+}
+/* Product cards */
+.cart-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.cart-item__image img {
+  width: 80px; height: auto; border-radius: 6px;
+}
+.cart-item__details { flex: 1; }
+.cart-item__top { display: flex; justify-content: space-between; align-items: flex-start; }
+.cart-item__remove { border: none; background: none; font-size: 18px; color: #999; cursor: pointer; }
+
+
+
+/* Badge */
+/* Summary */
+{% comment %} .cart-drawer__summary {
+  padding: 12px;
+  border-top: 1px solid #eee;
+} {% endcomment %}
+.cart-drawer__summary-checkout {
+    {% comment %} position: fixed; {% endcomment %}
+    width: 100%;
+    bottom: 10%;
+    background: #f8f8f8;
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);/* optional soft shadow */
+}
+.cart-drawer__summary,
+.cart-drawer__checkout {
+  border: none;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+.cart-drawer__summary .discount { color: #a33; }
+.cart-drawer__summary .total { font-weight: 700; font-size: 16px; margin-top: 6px; }
+/* Checkout */
+{% comment %} .cart-drawer__checkout {
+  background: #d48b8b;
+  padding: 16px;
+  text-align: center;
+} {% endcomment %}
+.checkout-btn {
+  background: #000; color: #fff;
+  padding: 12px 20px; border-radius: 6px;
+  font-size: 16px; font-weight: 600;
+  width: 100%; cursor: pointer;
+}
+.checkout-icons { margin-left: 6px; font-size: 12px; }
+.checkout-note { margin: 6px 0 0; font-size: 12px; color: #fff; }
+/* Footer tabs */
+.cart-drawer__footer {
+     position: fixed;
+    bottom: -3px;
+    left: 0;
+    margin: 4%;
+    right: 0;
+    background: #fff;
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #eee;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+    z-index: 10;
+}
+
+.cart-drawer__footer button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cart-drawer__footer button.active {
+  color: #d48b8b;
+  font-weight: 600;
+  position: relative;
+}
+.cart-drawer__footer button.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #d48b8b;
+  border-radius: 2px;
+}
+
+/* Title */
+.cart-item__title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.cart-item__title .variant {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  font-weight: 400;
+}
+/* Pricing */
+.cart-item__pricing {
+  margin: 6px 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cart-item__pricing .compare-at {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 13px;
+}
+.cart-item__pricing .price {
+  font-weight: 700;
+  font-size: 14px;
+  color: #222;
+}
+/* Qty stepper */
+.cart-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+  margin-top: 6px;
+}
+.qty-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f9f9f9;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.cart-item__qty {
+  width: 40px;
+  text-align: center;
+  font-weight: 600;
+  background: #fff;
+}
+/* Green Badge */
+.cart-item__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  background: #e6f4ea;   /* light green */
+  color: #1b5e20;        /* dark green */
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;   /* pill */
+}
+.cart-item__badge::before {
+  content: "🏷️";
+}
+</style>
+
+
+{% schema %}
+{
+  "name": "Optimaio Corner cart",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}
