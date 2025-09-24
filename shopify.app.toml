@@ -26,5 +26,5 @@ scopes = "write_products"
 [auth]
 redirect_urls = ["https://corner-cart.onrender.com/api/auth/callback"]
 
-[build]
-automatically_update_urls_on_dev = true
+#[build]
+#automatically_update_urls_on_dev = true
