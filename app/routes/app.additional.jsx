@@ -9,8 +9,13 @@ import {
   BlockStack,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import "@shopify/polaris/build/esm/styles.css";
+import { authenticate } from "../shopify.server"; // ✅ make sure path is correct
 
+// 🔑 Required so Shopify Admin lets this page load
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
+  return null;
+};
 
 export default function AdditionalPage() {
   return (
@@ -42,6 +47,7 @@ export default function AdditionalPage() {
             </BlockStack>
           </Card>
         </Layout.Section>
+
         <Layout.Section variant="oneThird">
           <Card>
             <BlockStack gap="200">
@@ -64,6 +70,16 @@ export default function AdditionalPage() {
         </Layout.Section>
       </Layout>
     </Page>
+  );
+}
+
+// 🔎 Show errors instead of blank page
+export function ErrorBoundary({ error }) {
+  return (
+    <div style={{ padding: 20, color: "red", background: "white" }}>
+      <h2>🚨 Error in Additional Page</h2>
+      <pre>{error.message}</pre>
+    </div>
   );
 }
 
