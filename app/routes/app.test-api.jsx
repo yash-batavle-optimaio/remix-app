@@ -1,32 +1,29 @@
-import { Page, Layout, Card, Text } from "@shopify/polaris";
-import { authenticate } from "../shopify.server";
+import { Response } from "@remix-run/node";
 
-export const loader = async ({ request }) => {
-  await authenticate.admin(request); // ensures Shopify session
-  return null;
+// loader = GET endpoint → returns HTML
+export const loader = async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Test Page</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+          h1 {
+            color: green;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>✅ Public Test Page is working in Shopify Admin!</h1>
+        <p>Rendered with plain HTML instead of Polaris.</p>
+      </body>
+    </html>
+  `;
+  return new Response(html, {
+    headers: { "Content-Type": "text/html" },
+  });
 };
-
-export default function TestPage() {
-  return (
-    <Page>
-      <Layout>
-        <Layout.Section>
-          <Card sectioned>
-            <Text as="h2" variant="headingMd">
-              ✅ Public Test Page is working inside Shopify!
-            </Text>
-          </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
-  );
-}
-
-export function ErrorBoundary({ error }) {
-  return (
-    <div style={{ padding: 20, background: "white", color: "red" }}>
-      <h2>🚨 Error in test-api route</h2>
-      <pre>{error.message}</pre>
-    </div>
-  );
-}
