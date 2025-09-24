@@ -1,12 +1,14 @@
-// app/routes/app.test-api.jsx
+import { authenticate } from "../shopify.server";
 
-// GET endpoint → returns HTML page
-export const loader = async () => {
+// GET endpoint → returns HTML page (only if authenticated)
+export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+
   const html = `
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Test Page</title>
+        <title>Test Page (Authenticated)</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -41,8 +43,13 @@ export const loader = async () => {
         </style>
       </head>
       <body>
-        <h1>✅ Public Test Page is working in Shopify Admin!</h1>
-        <p>This page uses plain HTML (no Polaris) so you can debug rendering inside the Shopify iFrame.</p>
+        <h1>✅ Authenticated Test Page</h1>
+        <p>This confirms <strong>Shopify Admin authentication</strong> is working.</p>
+
+        <p><strong>Shop:</strong> ${session.shop}</p>
+        <p><strong>Access Token (first 10 chars):</strong> ${
+          session.accessToken?.substring(0, 10) || "N/A"
+        }...</p>
 
         <form method="post">
           <label>
@@ -54,13 +61,15 @@ export const loader = async () => {
       </body>
     </html>
   `;
+
   return new Response(html, {
     headers: { "Content-Type": "text/html" },
   });
 };
 
-// POST endpoint → echoes submitted data in HTML
+// POST endpoint → echoes submitted data in HTML (with auth)
 export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
   const body = await request.formData();
   const message = body.get("message") || "(empty)";
 
@@ -86,8 +95,9 @@ export const action = async ({ request }) => {
         </style>
       </head>
       <body>
-        <h1>📩 Form Submitted!</h1>
+        <h1>📩 Form Submitted (Authenticated)</h1>
         <p>You entered: <strong>${message}</strong></p>
+        <p><strong>Shop:</strong> ${session.shop}</p>
         <a href="/app/test-api">⬅ Back to Test Page</a>
       </body>
     </html>
