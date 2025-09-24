@@ -12,7 +12,8 @@ import {
 import polarisTranslations from "@shopify/polaris/locales/en.json";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { login } from "../../shopify.server";
-import { loginErrorMessage } from "./error.server";
+// import { loginErrorMessage } from "./error.server";
+import { loginErrorMessage } from "../utils/error.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
