@@ -1,75 +1,37 @@
+import { json } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+import { Page, Layout, Card, Text } from "@shopify/polaris";
+import { authenticate } from "../shopify.server";
 
-
-
-import {
-  Box,
-  Card,
-  Layout,
-  Link,
-  List,
-  Page,
-  Text,
-  BlockStack,
-} from "@shopify/polaris";
-import "@shopify/polaris/build/esm/styles.css";
-import { TitleBar } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server"; // ✅ make sure path is correct
-
-// 🔑 Required so Shopify Admin lets this page load
+// Loader ensures authentication and passes session info to the component
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+
+  return json({
+    shop: session.shop,
+    accessToken: session.accessToken,
+  });
 };
 
 export default function AdditionalPage() {
+  const { shop, accessToken } = useLoaderData();
+
   return (
-    <Page>
-      <TitleBar title="Additional page" />
+    <Page title="Additional Test Page">
       <Layout>
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="p" variant="bodyMd">
-                The app template comes with an additional page which
-                demonstrates how to create multiple pages within app navigation
-                using{" "}
-                <Link
-                  url="https://shopify.dev/docs/apps/tools/app-bridge"
-                  target="_blank"
-                  removeUnderline
-                >
-                  App Bridge
-                </Link>
-                .
-              </Text>
-              <Text as="p" variant="bodyMd">
-                To create your own page and have it show up in the app
-                navigation, add a page inside <Code>app/routes</Code>, and a
-                link to it in the <Code>&lt;NavMenu&gt;</Code> component found
-                in <Code>app/routes/app.jsx</Code>.
-              </Text>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="200">
-              <Text as="h2" variant="headingMd">
-                Resources
-              </Text>
-              <List>
-                <List.Item>
-                  <Link
-                    url="https://shopify.dev/docs/apps/design-guidelines/navigation#app-nav"
-                    target="_blank"
-                    removeUnderline
-                  >
-                    App nav best practices
-                  </Link>
-                </List.Item>
-              </List>
-            </BlockStack>
+          <Card sectioned>
+            <Text variant="headingMd">✅ Polaris UI Works!</Text>
+            <Text variant="bodyMd" as="p">
+              This is a test page inside your embedded Shopify app.
+            </Text>
+            <br />
+            <Text variant="bodyMd">
+              <strong>Shop:</strong> {shop}
+            </Text>
+            <Text variant="bodyMd">
+              <strong>Access Token:</strong> {accessToken?.substring(0, 8)}...
+            </Text>
           </Card>
         </Layout.Section>
       </Layout>
@@ -77,29 +39,12 @@ export default function AdditionalPage() {
   );
 }
 
-// 🔎 Show errors instead of blank page
+// Error boundary for debugging
 export function ErrorBoundary({ error }) {
   return (
-    <div style={{ padding: 20, color: "red", background: "white" }}>
-      <h2>🚨 Error in Additional Page</h2>
+    <div style={{ padding: 20, background: "white", color: "red" }}>
+      <h2>🚨 Error in app.additional.jsx</h2>
       <pre>{error.message}</pre>
     </div>
-  );
-}
-
-function Code({ children }) {
-  return (
-    <Box
-      as="span"
-      padding="025"
-      paddingInlineStart="100"
-      paddingInlineEnd="100"
-      background="bg-surface-active"
-      borderWidth="025"
-      borderColor="border"
-      borderRadius="100"
-    >
-      <code>{children}</code>
-    </Box>
   );
 }
