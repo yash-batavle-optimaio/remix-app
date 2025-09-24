@@ -1,3 +1,6 @@
+
+
+
 import {
   Box,
   Card,
@@ -8,6 +11,7 @@ import {
   Text,
   BlockStack,
 } from "@shopify/polaris";
+import "@shopify/polaris/build/esm/styles.css";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server"; // ✅ make sure path is correct
 
