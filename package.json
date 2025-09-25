@@ -2,9 +2,6 @@
   "name": "corner-cart",
   "private": true,
   "scripts": {
-    "prisma:deploy": "prisma migrate deploy --verbose",
-    "prisma:generate": "prisma generate",
-    "prisma:reset": "prisma migrate reset",
     "build": "remix vite:build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
