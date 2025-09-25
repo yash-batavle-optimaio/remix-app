@@ -17,5 +17,6 @@ RUN npm remove @shopify/cli
 COPY . .
 
 RUN npm run build
+RUN npm run prisma:deploy   # only once at build
+CMD ["npm", "run", "start"] # runtime doesn’t touch schema
 
-CMD ["npm", "run", "docker-start"]
