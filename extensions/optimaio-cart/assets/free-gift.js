@@ -1,5 +1,5 @@
 (() => {
-  const METAFIELD_ENDPOINT = "/apps/optimaio/cart-campaigns"; // Your proxy or custom endpoint
+  const METAFIELD_ENDPOINT = "/apps/optimaio-cart-campaigns"; // Your proxy or custom endpoint
 
   if (window.__freeGiftInit) return;
   window.__freeGiftInit = true;
