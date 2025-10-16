@@ -26,7 +26,7 @@ scopes = "read_products,write_products,read_discounts,write_discounts,write_cart
 [app_proxy]
 prefix = "apps"
 subpath = "optimaio-cart-campaigns"
-url = "https://remix-app-rqyv.onrender.com/apps/optimaio/cart-campaigns"
+url = "https://remix-app-rqyv.onrender.com/apps/optimaio-cart-campaigns"
 
 [auth]
 redirect_urls = ["https://remix-app-rqyv.onrender.com/auth/callback"]
