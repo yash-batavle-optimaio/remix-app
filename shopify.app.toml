@@ -23,6 +23,10 @@ api_version = "2025-10"
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_products,write_products,read_discounts,write_discounts,write_cart_transforms"
 
+[app_proxy]
+prefix = "apps"
+subpath = "optimaio-cart-campaigns"
+url = "https://remix-app-rqyv.onrender.com/apps/optimaio/cart-campaigns"
 
 [auth]
 redirect_urls = ["https://remix-app-rqyv.onrender.com/auth/callback"]
