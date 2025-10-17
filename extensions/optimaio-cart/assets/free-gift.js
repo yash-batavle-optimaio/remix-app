@@ -12,15 +12,19 @@
   }
 
   async function getCampaigns() {
-    try {
-      const res = await fetch(METAFIELD_ENDPOINT);
-      const data = await res.json();
-      return (data.campaigns || []).filter((c) => c.status === "active");
-    } catch (e) {
-      console.warn("⚠️ Could not fetch campaigns metafield", e);
+  try {
+    const res = await fetch(METAFIELD_ENDPOINT);
+    if (!res.ok) {
+      console.warn(`⚠️ Error fetching campaigns, status: ${res.status}`);
       return [];
     }
+    const data = await res.json();
+    return (data.campaigns || []).filter((c) => c.status === "active");
+  } catch (e) {
+    console.warn("⚠️ Could not fetch campaigns metafield", e);
+    return [];
   }
+}
 
   async function addToCart(id, quantity = 1) {
     await fetch("/cart/add.js", {
