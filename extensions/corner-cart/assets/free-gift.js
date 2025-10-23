@@ -51,16 +51,42 @@
     window.__isGiftUpdateInProgress = false;
   }
 
-  function parseCampaignData() {
+async function parseCampaignData(forceRefresh = false) {
+  if (!forceRefresh) {
+    // Use global variable if available
     const raw = window.__OPTIMAIO_CAMPAIGNS__;
-    if (!raw) return null;
-    try {
-      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      return parsed.campaigns?.find(c => c.status === "active") || null;
-    } catch {
-      return null;
+    if (raw) {
+      try {
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        const active = (parsed.campaigns || []).filter(c => c.status === "active");
+        if (active.length) {
+          active.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+          return active[0];
+        }
+      } catch {}
     }
   }
+
+  // 🔄 Fetch fresh metafield JSON dynamically
+  try {
+    console.log("🔄 Fetching latest campaign data...");
+    const res = await fetch("/apps/optimaio-cart/campaigns.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to fetch campaigns");
+    const fresh = await res.json();
+    window.__OPTIMAIO_CAMPAIGNS__ = fresh; // update global cache
+    const active = (fresh.campaigns || []).filter(c => c.status === "active");
+    if (active.length) {
+      active.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+      return active[0];
+    }
+  } catch (err) {
+    console.warn("⚠️ Could not refresh campaigns:", err);
+  }
+
+  return null;
+}
+
+
 
   // 🎨 Inject popup only once
   if (!document.getElementById("optimaio-gift-popup")) {
@@ -144,7 +170,7 @@
     window.__isEnsuringGift = true;
 
     try {
-      const campaign = parseCampaignData();
+     const campaign = await parseCampaignData(true);
       if (!campaign) return;
 
       const { trackType, goals } = campaign;
