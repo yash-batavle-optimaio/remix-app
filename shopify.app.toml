@@ -20,7 +20,7 @@ api_version = "2025-10"
   uri = "/webhooks/app/scopes_update"
 
   [app_proxy]
-url = "/apps/optimaio-cart"
+url = "/optimaio-cart"
 prefix = "apps"
 subpath = "optimaio-cart"
 
