@@ -70,7 +70,7 @@ async function parseCampaignData(forceRefresh = false) {
   // 🔄 Fetch fresh metafield JSON dynamically
   try {
     console.log("🔄 Fetching latest campaign data...");
-    const res = await fetch("/apps/optimaio-cart/campaigns.json", { cache: "no-store" });
+    const res = await fetch("/apps/optimaio-cart.json", { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to fetch campaigns");
     const fresh = await res.json();
     window.__OPTIMAIO_CAMPAIGNS__ = fresh; // update global cache
