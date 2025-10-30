@@ -26,12 +26,12 @@ async function setMetafield(admin, shopId, key, valueObj) {
   return await admin.graphql(mutation, { variables });
 }
 
-/* ------------------ Helper: Ensure Automatic Discount Exists ------------------ */
-const DISCOUNT_FUNCTION_ID = "0199ccbf-1d9a-7579-9974-e6d1827160f5"; // same as tiers.jsx
-const DISCOUNT_TITLE = "Optimaio Automatic Tier Discount";
+/* ------------------ BXGY Discount Setup ------------------ */
+const DISCOUNT_FUNCTION_ID = "019a15db-3446-745a-907d-f91e801e8fb5"; // 👈 your Buy X Get Y function
+const DISCOUNT_TITLE = "Optimaio Buy X Get Y Discount";
 
-async function ensureAutomaticDiscountExists(admin) {
-  // 1️⃣ Check if discount already exists
+/* ------------------ Ensure BXGY Discount Exists ------------------ */
+async function ensureBxgyDiscountExists(admin) {
   const checkQuery = `
     query {
       discountNodes(first: 50) {
@@ -62,11 +62,10 @@ async function ensureAutomaticDiscountExists(admin) {
   );
 
   if (existing) {
-    console.log("✅ Automatic discount already exists:", existing.id);
+    console.log("✅ BXGY discount already exists:", existing.id);
     return existing.discount;
   }
 
-  // 2️⃣ Create new discount (only if not found)
   const createMutation = `
     mutation discountAutomaticAppCreate($automaticAppDiscount: DiscountAutomaticAppInput!) {
       discountAutomaticAppCreate(automaticAppDiscount: $automaticAppDiscount) {
@@ -88,8 +87,8 @@ async function ensureAutomaticDiscountExists(admin) {
     automaticAppDiscount: {
       title: DISCOUNT_TITLE,
       functionId: DISCOUNT_FUNCTION_ID,
-      discountClasses: ["ORDER", "PRODUCT", "SHIPPING"],
-      startsAt: new Date().toISOString(), // required
+      discountClasses: ["PRODUCT"],
+      startsAt: new Date().toISOString(),
       combinesWith: {
         orderDiscounts: true,
         productDiscounts: true,
@@ -103,12 +102,12 @@ async function ensureAutomaticDiscountExists(admin) {
 
   if (createData.data?.discountAutomaticAppCreate?.userErrors?.length) {
     console.error(
-      "⚠️ Automatic discount creation errors:",
+      "⚠️ BXGY discount creation errors:",
       createData.data.discountAutomaticAppCreate.userErrors
     );
   } else {
     console.log(
-      "✅ Discount created:",
+      "✅ BXGY Discount created:",
       createData.data.discountAutomaticAppCreate.automaticAppDiscount
     );
   }
@@ -116,15 +115,15 @@ async function ensureAutomaticDiscountExists(admin) {
   return createData.data.discountAutomaticAppCreate.automaticAppDiscount;
 }
 
-/* ------------------ Helper Functions ------------------ */
+/* ------------------ Helper: Generate BXGY Campaign ------------------ */
 function generateId() {
-  return `cmp_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+  return `bxgy_${Date.now()}_${Math.floor(Math.random() * 100000)}`; // 👈 changed prefix
 }
 
-function getNextCampaignNumber(campaigns) {
+function getNextBxgyNumber(campaigns) {
   let max = 0;
   campaigns.forEach((c) => {
-    const match = c.campaignName.match(/Cart goals (\d+)/);
+    const match = c.campaignName.match(/Buy X Get Y (\d+)/);
     if (match) {
       const num = parseInt(match[1], 10);
       if (num > max) max = num;
@@ -137,15 +136,15 @@ function getNextCampaignNumber(campaigns) {
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
 
-  // ✅ Step 1: Make sure automatic discount exists before campaign creation
-  await ensureAutomaticDiscountExists(admin);
+  // ✅ Step 1: Make sure BXGY automatic discount exists
+  await ensureBxgyDiscountExists(admin);
 
   // Step 2: Get shopId
   const shopRes = await admin.graphql(`{ shop { id } }`);
   const shopData = await shopRes.json();
   const shopId = shopData.data.shop.id;
 
-  // Step 3: Get existing campaigns
+  // Step 3: Fetch existing campaigns metafield
   const query = `
     query {
       shop {
@@ -169,13 +168,13 @@ export const action = async ({ request }) => {
     }
   }
 
-  // Step 4: Create new campaign object
-  const nextNumber = getNextCampaignNumber(campaigns);
+  // Step 4: Create new BXGY campaign
+  const nextNumber = getNextBxgyNumber(campaigns);
   const newCampaign = {
     id: generateId(),
-    campaignName: `Cart goals ${nextNumber}`,
+    campaignName: `Buy X Get Y ${nextNumber}`,
     status: "draft",
-    campaignType: "tiered",
+    campaignType: "bxgy",
   };
   campaigns.push(newCampaign);
 
