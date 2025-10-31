@@ -3,92 +3,112 @@
   if (window.__freeGiftInit) return;
   window.__freeGiftInit = true;
 
-  // concurrency locks
   window.__isEnsuringGift = false;
   window.__isGiftUpdateInProgress = false;
+  window.__giftDebounceTimer = null;
 
   console.log("🎁 Dynamic Free Gift script initializing…");
 
-  async function getCart() {
-    const res = await fetch("/cart.js", { cache: "no-store" });
-    return res.json();
+  async function wait(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  async function getCart(retry = 2) {
+    try {
+      const res = await fetch("/cart.js", { cache: "no-store" });
+      return res.json();
+    } catch (err) {
+      if (retry > 0) {
+        console.warn("⚠️ getCart retrying…", retry);
+        await wait(400);
+        return getCart(retry - 1);
+      }
+      throw err;
+    }
+  }
+
+  async function queueGiftTask(task) {
+    while (window.__isGiftUpdateInProgress) await wait(200);
+    window.__isGiftUpdateInProgress = true;
+    try {
+      await task();
+      await wait(1200);
+    } finally {
+      window.__isGiftUpdateInProgress = false;
+    }
   }
 
   async function addToCart(id) {
-    window.__isGiftUpdateInProgress = true;
-    await fetch("/cart/add.js", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id,
-        quantity: 1,
-        properties: { isFreeGift: "true" },
-      }),
+    await queueGiftTask(async () => {
+      await fetch("/cart/add.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          quantity: 1,
+          properties: { isFreeGift: "true" },
+        }),
+      });
     });
-    await new Promise(r => setTimeout(r, 600));
-    window.__isGiftUpdateInProgress = false;
   }
 
   async function updateQuantityToOne(key) {
-    window.__isGiftUpdateInProgress = true;
-    await fetch("/cart/change.js", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: key, quantity: 1 }),
+    await queueGiftTask(async () => {
+      await fetch("/cart/change.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: key, quantity: 1 }),
+      });
     });
-    await new Promise(r => setTimeout(r, 600));
-    window.__isGiftUpdateInProgress = false;
   }
 
   async function removeByKey(key) {
-    window.__isGiftUpdateInProgress = true;
-    await fetch("/cart/change.js", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: key, quantity: 0 }),
+    await queueGiftTask(async () => {
+      await fetch("/cart/change.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: key, quantity: 0 }),
+      });
     });
-    await new Promise(r => setTimeout(r, 600));
-    window.__isGiftUpdateInProgress = false;
   }
 
-async function parseCampaignData(forceRefresh = false) {
-  if (!forceRefresh) {
-    // Use global variable if available
-    const raw = window.__OPTIMAIO_CAMPAIGNS__;
-    if (raw) {
-      try {
-        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-        const active = (parsed.campaigns || []).filter(c => c.status === "active");
-        if (active.length) {
-          active.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
-          return active[0];
-        }
-      } catch {}
+  async function parseCampaignData(forceRefresh = false, retry = 2) {
+    if (!forceRefresh) {
+      const raw = window.__OPTIMAIO_CAMPAIGNS__;
+      if (raw) {
+        try {
+          const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+          const active = (parsed.campaigns || []).filter((c) => c.status === "active");
+          if (active.length) {
+            active.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+            return active[0];
+          }
+        } catch {}
+      }
     }
-  }
 
-  // 🔄 Fetch fresh metafield JSON dynamically
-  try {
-    console.log("🔄 Fetching latest campaign data...");
-    const res = await fetch("/apps/optimaio-cart", { cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to fetch campaigns");
-    const fresh = await res.json();
-    window.__OPTIMAIO_CAMPAIGNS__ = fresh; // update global cache
-    const active = (fresh.campaigns || []).filter(c => c.status === "active");
-    if (active.length) {
-      active.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
-      return active[0];
+    try {
+      console.log("🔄 Fetching latest campaign data...");
+      const res = await fetch("/apps/optimaio-cart", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch campaigns");
+      const fresh = await res.json();
+      window.__OPTIMAIO_CAMPAIGNS__ = fresh;
+      const active = (fresh.campaigns || []).filter((c) => c.status === "active");
+      if (active.length) {
+        active.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+        return active[0];
+      }
+    } catch (err) {
+      console.warn("⚠️ Could not refresh campaigns:", err);
+      if (retry > 0) {
+        await wait(500);
+        return parseCampaignData(true, retry - 1);
+      }
     }
-  } catch (err) {
-    console.warn("⚠️ Could not refresh campaigns:", err);
+    return null;
   }
 
-  return null;
-}
-
-
-
-  // 🎨 Inject popup only once
+  // popup (unchanged)
   if (!document.getElementById("optimaio-gift-popup")) {
     const popupHTML = `
       <div id="optimaio-gift-popup" class="optimaio-gift-popup" style="display:none;">
@@ -126,18 +146,20 @@ async function parseCampaignData(forceRefresh = false) {
     const maxEl = document.getElementById("optimaio-max-gifts");
     maxEl.textContent = maxQty;
 
-    container.innerHTML = products.map(
-      (p) => `
+    container.innerHTML = products
+      .map(
+        (p) => `
         <div class="optimaio-gift-option" data-id="${Number(p.id.split("/").pop())}">
-          <img src="${p.image?.url || p.featured_image || p.images?.[0] || ''}" alt="${p.title}">
+          <img src="${p.image?.url || p.featured_image || p.images?.[0] || ""}" alt="${p.title}">
           <p>${p.productTitle || p.title}</p>
         </div>`
-    ).join("");
+      )
+      .join("");
 
     popup.style.display = "flex";
     let selected = new Set();
 
-    container.querySelectorAll(".optimaio-gift-option").forEach(opt => {
+    container.querySelectorAll(".optimaio-gift-option").forEach((opt) => {
       opt.addEventListener("click", () => {
         const id = Number(opt.dataset.id);
         if (selected.has(id)) {
@@ -158,10 +180,8 @@ async function parseCampaignData(forceRefresh = false) {
 
     document.getElementById("optimaio-confirm-gifts").onclick = async () => {
       popup.style.display = "none";
-      for (const vid of selected) {
-        await addToCart(vid);
-      }
-      ensureFreeGift();
+      for (const vid of selected) await addToCart(vid);
+      setTimeout(() => ensureFreeGift(), 1200);
     };
   }
 
@@ -170,61 +190,104 @@ async function parseCampaignData(forceRefresh = false) {
     window.__isEnsuringGift = true;
 
     try {
-     const campaign = await parseCampaignData(true);
-      if (!campaign) return;
+      const campaign = await parseCampaignData(true);
+      if (!campaign) {
+        console.warn("⚠️ No active campaign found");
+        return;
+      }
 
       const { trackType, goals } = campaign;
-      const giftGoal = goals?.find(g => g.type === "free_product");
-      if (!giftGoal || !giftGoal.products?.length) return;
+      const giftGoal = goals?.find((g) => g.type === "free_product");
+      if (!giftGoal || !giftGoal.products?.length) {
+        console.warn("⚠️ No free product goal found");
+        return;
+      }
 
-      const giftVariantIds = giftGoal.products.map(p =>
-        Number(p.id.split("/").pop())
-      );
-
+      const giftVariantIds = giftGoal.products.map((p) => Number(p.id.split("/").pop()));
       const cart = existingCart || (await getCart());
-      const giftLines = cart.items.filter(i => i.properties?.isFreeGift === "true");
-      const hasNonGiftProducts = cart.items.some(i => !giftVariantIds.includes(i.variant_id));
+      if (!cart?.items) {
+        console.warn("⚠️ Empty cart data, retrying...");
+        await wait(800);
+        return ensureFreeGift();
+      }
+
+      const giftLines = cart.items.filter((i) => i.properties?.isFreeGift === "true");
+      const hasNonGiftProducts = cart.items.some((i) => !giftVariantIds.includes(i.variant_id));
 
       const subtotal =
         cart.items
-          .filter(i => !giftVariantIds.includes(i.variant_id))
+          .filter((i) => !giftVariantIds.includes(i.variant_id))
           .reduce((a, i) => a + i.final_line_price, 0) / 100;
-
       const totalQty = cart.items
-        .filter(i => !giftVariantIds.includes(i.variant_id))
+        .filter((i) => !giftVariantIds.includes(i.variant_id))
         .reduce((a, i) => a + i.quantity, 0);
 
       const targetAmount = parseFloat(giftGoal.target || giftGoal.thresholdAmount || 0);
       const targetQty = parseInt(giftGoal.target || giftGoal.minQty || 0, 10);
+      let conditionMet = trackType === "quantity" ? totalQty >= targetQty : subtotal >= targetAmount;
 
-      let conditionMet = false;
-      if (trackType === "quantity") conditionMet = totalQty >= targetQty;
-      else conditionMet = subtotal >= targetAmount;
+      console.log(`[🎯 Gift Check] Met=${conditionMet} | subtotal=${subtotal} | qty=${totalQty}`);
 
-      console.log(`[🎯 Gift Check] Met=${conditionMet}`);
-
-      // Always enforce quantity = 1
       for (const g of giftLines) {
         if (g.quantity !== 1) await updateQuantityToOne(g.key);
       }
 
       if (conditionMet && hasNonGiftProducts) {
-        // Show popup if multiple gift choices are allowed
         if ((giftGoal.giftQty || 1) > 1 && !giftLines.length) {
           showGiftSelectionPopup(giftGoal.products, giftGoal.giftQty);
           return;
         }
 
-        // Verify-before-add logic
         for (const vid of giftVariantIds) {
           const refreshed = await getCart();
           const exists = refreshed.items.some(
-            i => i.variant_id === vid && i.properties?.isFreeGift === "true"
+            (i) => i.variant_id === vid && i.properties?.isFreeGift === "true"
           );
           if (!exists) await addToCart(vid);
         }
+        console.log("✅ Gift condition verified & stable.");
       } else {
-        for (const g of giftLines) await removeByKey(g.key);
+        await wait(1500);
+        const recheck = await getCart();
+        const subtotal2 =
+          recheck.items
+            .filter((i) => !giftVariantIds.includes(i.variant_id))
+            .reduce((a, i) => a + i.final_line_price, 0) / 100;
+        const qty2 = recheck.items
+          .filter((i) => !giftVariantIds.includes(i.variant_id))
+          .reduce((a, i) => a + i.quantity, 0);
+        const stillFalse =
+          trackType === "quantity" ? qty2 < targetQty : subtotal2 < targetAmount;
+
+        if (stillFalse) {
+  console.log("⚠️ Condition still false, waiting before remove recheck...");
+  await wait(1000);
+  const confirmCart = await getCart();
+  const subtotal3 =
+    confirmCart.items
+      .filter(i => !giftVariantIds.includes(i.variant_id))
+      .reduce((a, i) => a + i.final_line_price, 0) / 100;
+  const qty3 = confirmCart.items
+      .filter(i => !giftVariantIds.includes(i.variant_id))
+      .reduce((a, i) => a + i.quantity, 0);
+  const confirmedFalse =
+      trackType === "quantity" ? qty3 < targetQty : subtotal3 < targetAmount;
+  if (confirmedFalse) {
+    for (const g of giftLines) await removeByKey(g.key);
+    console.log("❌ Gift removed (confirmed after triple recheck).");
+  } else {
+    console.log("✅ Cart stabilized; skipping removal.");
+  }
+} else {
+  console.log("⏳ Delayed recheck: condition true, keeping gifts.");
+}
+
+if (!giftLines.length) {
+  console.log("🎁 Showing popup after delayed recheck...");
+  showGiftSelectionPopup(giftGoal.products, giftGoal.giftQty || 1);
+}
+
+
       }
 
       document.dispatchEvent(new CustomEvent("optimaio:cart:refresh"));
@@ -233,28 +296,29 @@ async function parseCampaignData(forceRefresh = false) {
     }
   }
 
-  // Hook into cart changes
+  function triggerEnsureGiftDebounced() {
+    clearTimeout(window.__giftDebounceTimer);
+    window.__giftDebounceTimer = setTimeout(() => ensureFreeGift(), 3500);
+  }
+
   const _fetch = window.fetch;
   window.fetch = async (...args) => {
     const res = await _fetch(...args);
     const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
-    if (/\/cart\/(add|change|update|clear)\.js/.test(url)) {
-      setTimeout(() => ensureFreeGift(), 900);
-    }
+    if (/\/cart\/(add|change|update|clear)\.js/.test(url)) triggerEnsureGiftDebounced();
     return res;
   };
 
   const _open = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
     this.addEventListener("load", () => {
-      if (typeof url === "string" && /\/cart\/(add|change|update|clear)\.js/.test(url)) {
-        setTimeout(() => ensureFreeGift(), 900);
-      }
+      if (typeof url === "string" && /\/cart\/(add|change|update|clear)\.js/.test(url))
+        triggerEnsureGiftDebounced();
     });
     return _open.call(this, method, url, ...rest);
   };
 
-  // 🧩 First run
+  // 🧩 first run
   setTimeout(async () => {
     const cart = await getCart();
     for (const i of cart.items) {

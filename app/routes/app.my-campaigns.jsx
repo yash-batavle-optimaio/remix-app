@@ -316,6 +316,24 @@ const renderBxgyEditor = () => {
   </Button>
 
   <Button
+  pressed={bxgyGoal.bxgyMode === "spend_any_collection"}
+  onClick={() =>
+    setGoals((prev) => [
+      {
+        ...prev[0],
+        bxgyMode: "spend_any_collection",
+        spendAmount: prev[0].spendAmount || 0,
+        minQty: prev[0].minQty || 1,
+        buyCollections: prev[0].buyCollections || [],
+      },
+    ])
+  }
+>
+  Spend X on Any Collection
+</Button>
+
+
+  <Button
     pressed={bxgyGoal.bxgyMode === "collection"}
     onClick={() =>
       setGoals((prev) => [
@@ -430,6 +448,88 @@ const renderBxgyEditor = () => {
             )}
           </>
         )}
+
+        {bxgyGoal.bxgyMode === "spend_any_collection" && (
+  <div style={{ marginTop: "1.5rem" }}>
+    <Text variant="headingSm" fontWeight="bold">
+      Spend X on Any Collection
+    </Text>
+
+    {/* Spend threshold */}
+    <TextField
+      label="Minimum Spend (₹)"
+      type="number"
+      value={bxgyGoal.spendAmount || 0}
+      onChange={(val) =>
+        setGoals([{ ...bxgyGoal, spendAmount: Number(val) }])
+      }
+      helpText="Customer must spend at least this amount in selected collections."
+    />
+
+    {/* Select collections */}
+    <Button
+      primary
+      onClick={() => {
+        setPickerType("collection");
+        setPickerOpen(true);
+        setCurrentGoal(bxgyGoal.id);
+      }}
+      style={{ marginTop: "0.75rem" }}
+    >
+      Select Eligible Collections
+    </Button>
+
+    {(bxgyGoal.buyCollections || []).length > 0 && (
+      <div style={{ marginTop: "0.75rem" }}>
+        {(bxgyGoal.buyCollections || []).map((c) => (
+          <div
+            key={c.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              border: "1px solid #eee",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              marginBottom: "0.5rem",
+              background: "#fff",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <img
+                src={c.image?.url || c.image?.src || ""}
+                alt={c.title}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "4px",
+                  objectFit: "cover",
+                }}
+              />
+              <Text>{c.title}</Text>
+            </div>
+            <Button
+              plain
+              destructive
+              icon={<Icon source={DeleteIcon} />}
+              onClick={() =>
+                setGoals([
+                  {
+                    ...bxgyGoal,
+                    buyCollections: bxgyGoal.buyCollections.filter(
+                      (col) => col.id !== c.id
+                    ),
+                  },
+                ])
+              }
+            />
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
 
         {bxgyGoal.bxgyMode === "collection" && (
           <>
