@@ -71,7 +71,7 @@ export const action = async ({ request }) => {
 
     for (const campaign of activeBxgys) {
       const goal = campaign.goals?.[0];
-      if (goal?.bxgyMode === "collection" && goal.buyCollections?.length > 0) {
+      if ((goal?.bxgyMode === "collection" || goal?.bxgyMode === "spend_any_collection")  && goal.buyCollections?.length > 0) {
         for (const col of goal.buyCollections) {
           if (!allCollections.includes(col.id)) allCollections.push(col.id);
         }

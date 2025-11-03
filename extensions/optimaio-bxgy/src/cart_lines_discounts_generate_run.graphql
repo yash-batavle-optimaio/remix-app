@@ -18,6 +18,10 @@ query RunInput($collectionIds: [ID!]){
           title
           product {
             inAnyCollection(ids: $collectionIds)
+              inCollections(ids: $collectionIds) {
+              collectionId
+              isMember
+            }
           }
         }
       }

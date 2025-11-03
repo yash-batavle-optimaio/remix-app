@@ -144,7 +144,7 @@ await setMetafield(admin, shopId, "campaigns", { campaigns: normalizedCampaigns 
       shopId,
       "bxgy_top_collection",
       valueObj,
-      "gid://shopify/DiscountAutomaticNode/1167145599131"
+      "gid://shopify/DiscountAutomaticNode/"
     );
   } else {
     console.log("🕸 No active BXGY campaigns found — clearing metafield.");

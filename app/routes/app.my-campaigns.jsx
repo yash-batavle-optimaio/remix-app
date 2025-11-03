@@ -372,10 +372,14 @@ const renderBxgyEditor = () => {
 
       {/* ---------------- BUY SECTION ---------------- */}
       <div style={{ marginTop: "1.5rem" }}>
+
+        {bxgyGoal.bxgyMode !== "spend_any_collection" && (
         <Text variant="headingSm" fontWeight="bold">
           Buy Requirements (X)
         </Text>
+        )}
 
+{bxgyGoal.bxgyMode !== "spend_any_collection" && (
 <div style={{ marginBottom: "1rem" }}>
         <TextField
           label="Buy Quantity (X)"
@@ -384,6 +388,7 @@ const renderBxgyEditor = () => {
           onChange={(val) => setGoals([{ ...bxgyGoal, buyQty: Number(val) }])}
         />
 </div>
+)}
         {bxgyGoal.bxgyMode === "product" && (
           <>
             <Button

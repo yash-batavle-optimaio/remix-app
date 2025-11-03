@@ -58,9 +58,14 @@ export function cartLinesDiscountsGenerateRun(input) {
     const lockedGifts = new Set();
 
     // Helper to match cart lines by collection
-    const isInCollection = (line, collectionIds = []) => {
-      return line.merchandise?.product?.inAnyCollection && collectionIds.length > 0;
-    };
+   const isInCollection = (line, collectionIds = []) => {
+  if (!collectionIds?.length) return false;
+  const lineCollections = line.merchandise?.product?.inCollections || [];
+  return lineCollections.some(
+    (c) => c.isMember && collectionIds.includes(c.collectionId)
+  );
+};
+
 
     campaigns.forEach((campaign) => {
       const { campaignName, goals, priority } = campaign;
@@ -78,13 +83,9 @@ export function cartLinesDiscountsGenerateRun(input) {
         const spendAmount = parseFloat(goal.spendAmount || 0);
 
         /* 🚫 Skip campaign if buy products/collections already locked */
-        if (
-          buyProductIds.some((pid) => lockedBuyProducts.has(pid)) ||
-          buyCollectionIds.some((cid) => lockedCollections.has(cid))
-        ) {
-          console.log(`⏩ Skipping campaign '${campaignName}' (conflict or lower priority).`);
-          return;
-        }
+       /* ✅ Allow multiple campaigns to apply independently */
+console.log(`⚙️ Evaluating campaign '${campaignName}' (multiple discounts allowed).`);
+
 
         let conditionMet = false;
 
@@ -116,17 +117,22 @@ export function cartLinesDiscountsGenerateRun(input) {
             break;
           }
 
-          case "spend": {
-            let totalSpend = 0;
-            input.cart.lines.forEach((line) => {
-              if (isInCollection(line, buyCollectionIds)) {
-                totalSpend +=
-                  parseFloat(line.cost.amountPerQuantity.amount) * (line.quantity ?? 1);
-              }
-            });
-            conditionMet = totalSpend >= spendAmount;
-            break;
-          }
+         case "spend_any_collection": {
+  let totalSpend = 0;
+  input.cart.lines.forEach((line) => {
+    // ✅ count spend only from products that belong to this campaign’s collections
+    if (isInCollection(line, buyCollectionIds)) {
+      totalSpend +=
+        parseFloat(line.cost.amountPerQuantity.amount) * (line.quantity ?? 1);
+    }
+  });
+  console.log(
+    `💰 Spend check (${campaignName}): need ₹${spendAmount}, got ₹${totalSpend}`
+  );
+  conditionMet = totalSpend >= spendAmount;
+  break;
+}
+
 
     case "all":
 case "storewide": {
