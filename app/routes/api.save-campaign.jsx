@@ -33,6 +33,76 @@ async function setMetafield(admin, shopId, key, valueObj, ownerId = shopId) {
   return data;
 }
 
+/* 🔍 Helper: Find this app’s DiscountAutomaticNode dynamically */
+async function getDiscountNodeId(admin) {
+  const query = `
+    query GetAllDiscounts {
+      discountNodes(first: 20) {
+        edges {
+          node {
+            id
+            discount {
+              __typename
+              ... on DiscountAutomaticApp {
+                title
+                status
+                appDiscountType {
+                  appKey
+                  functionId
+                }
+              }
+              ... on DiscountCodeApp {
+                title
+                status
+                appDiscountType {
+                  appKey
+                  functionId
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const res = await admin.graphql(query);
+    const data = await res.json();
+
+    const nodes = data?.data?.discountNodes?.edges || [];
+    console.log("🔍 Discount nodes found:", JSON.stringify(nodes, null, 2));
+
+    // Match your app’s unique function ID or title
+    const targetFunctionId = "019a15db-3446-745a-907d-f91e801e8fb5";
+
+   const foundNode =
+  nodes.find((edge) => {
+    const d = edge.node.discount;
+    if (!d) return false;
+    const funcId = d.appDiscountType?.functionId?.toLowerCase?.() || "";
+    return funcId === targetFunctionId.toLowerCase();
+  }) ||
+  nodes.find((edge) => {
+    const d = edge.node.discount;
+    const title = (d?.title || "").toLowerCase();
+    return title.includes("buy x get y");
+  });
+
+    if (foundNode) {
+      console.log("✅ Found Discount Node:", foundNode.node.id);
+      return foundNode.node.id;
+    }
+
+    console.warn("⚠️ No Discount Node found for this app.");
+    return null;
+  } catch (err) {
+    console.error("❌ Error fetching Discount Node:", err);
+    return null;
+  }
+}
+
+
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
 
@@ -71,49 +141,51 @@ export const action = async ({ request }) => {
   console.log("🆕 Incoming campaign:", newCampaign);
 
   // 4️⃣ Update or add campaign
-  // 4️⃣ Update or add campaign (preserve or auto-assign priority)
-const idx = campaigns.findIndex((c) => c.id === newCampaign.id);
-if (idx > -1) {
-  campaigns[idx] = newCampaign;
-} else {
-  newCampaign.priority = newCampaign.priority ?? campaigns.length + 1;
-  campaigns.push(newCampaign);
-}
+  const idx = campaigns.findIndex((c) => c.id === newCampaign.id);
+  if (idx > -1) {
+    campaigns[idx] = newCampaign;
+  } else {
+    newCampaign.priority = newCampaign.priority ?? campaigns.length + 1;
+    campaigns.push(newCampaign);
+  }
 
-// 5️⃣ Normalize priorities before saving
-const normalizedCampaigns = campaigns.map((c, i) => ({
-  ...c,
-  priority: typeof c.priority === "number" ? c.priority : i + 1,
-}));
+  // 5️⃣ Normalize priorities
+  const normalizedCampaigns = campaigns.map((c, i) => ({
+    ...c,
+    priority: typeof c.priority === "number" ? c.priority : i + 1,
+  }));
 
-await setMetafield(admin, shopId, "campaigns", { campaigns: normalizedCampaigns });
+  await setMetafield(admin, shopId, "campaigns", { campaigns: normalizedCampaigns });
 
+  // 6️⃣ Get Discount Node dynamically (important!)
+  const discountNodeId = await getDiscountNodeId(admin);
+  if (!discountNodeId) {
+    console.warn("⚠️ No DiscountAutomaticNode found. Skipping bxgy_top_collection update.");
+    return json({ ok: true, warning: "Discount node not found", campaigns });
+  }
 
-  // 6️⃣ 🧠 Gather all active BXGY campaigns
+  // 7️⃣ Gather active BXGY campaigns
   const activeBxgys = campaigns.filter(
     (c) => c.campaignType === "bxgy" && c.status === "active"
   );
 
-  // 7️⃣ If active BXGYs exist → gather all collection IDs
   if (activeBxgys.length > 0) {
     const allCollections = [];
     const activeCampaignsInfo = [];
 
- for (const campaign of activeBxgys) {
-  const goal = campaign.goals?.[0];
-
-  // ✅ Include both "collection" and "spend_any_collection" modes
-  if (
-    (goal?.bxgyMode === "collection" || goal?.bxgyMode === "spend_any_collection") &&
-    goal.buyCollections?.length > 0
-  ) {
-    for (const col of goal.buyCollections) {
-      if (!allCollections.includes(col.id)) {
-        allCollections.push(col.id);
+    for (const campaign of activeBxgys) {
+      const goal = campaign.goals?.[0];
+      // ✅ Include both "collection" and "spend_any_collection"
+      if (
+        (goal?.bxgyMode === "collection" || goal?.bxgyMode === "spend_any_collection") &&
+        goal.buyCollections?.length > 0
+      ) {
+        for (const col of goal.buyCollections) {
+          if (!allCollections.includes(col.id)) {
+            allCollections.push(col.id);
+          }
+        }
       }
-    }
-  }
-
 
       activeCampaignsInfo.push({
         id: campaign.id,
@@ -122,10 +194,8 @@ await setMetafield(admin, shopId, "campaigns", { campaigns: normalizedCampaigns 
       });
     }
 
-    // Find the highest priority active BXGY
-    const topCampaign = activeBxgys.sort(
-      (a, b) => (b.priority || 0) - (a.priority || 0)
-    )[0];
+    // Find top priority active BXGY (lowest number = highest priority)
+    const topCampaign = activeBxgys.sort((a, b) => a.priority - b.priority)[0];
 
     const valueObj = {
       collectionIds: allCollections,
@@ -139,13 +209,7 @@ await setMetafield(admin, shopId, "campaigns", { campaigns: normalizedCampaigns 
 
     console.log("📦 Updating metafield with all active BXGY collections:", valueObj);
 
-    await setMetafield(
-      admin,
-      shopId,
-      "bxgy_top_collection",
-      valueObj,
-      "gid://shopify/DiscountAutomaticNode/"
-    );
+    await setMetafield(admin, shopId, "bxgy_top_collection", valueObj, discountNodeId);
   } else {
     console.log("🕸 No active BXGY campaigns found — clearing metafield.");
     await setMetafield(
@@ -153,7 +217,7 @@ await setMetafield(admin, shopId, "campaigns", { campaigns: normalizedCampaigns 
       shopId,
       "bxgy_top_collection",
       { collectionIds: [], activeCampaigns: [], topCampaign: null },
-      "gid://shopify/DiscountAutomaticNode/1167145599131"
+      discountNodeId
     );
   }
 

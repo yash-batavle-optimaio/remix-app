@@ -18,6 +18,9 @@ import {
   ProgressBar,
   BlockStack,
   Layout,
+  Divider,
+  Collapsible,
+  Link,
 } from "@shopify/polaris";
 import { useEffect, useState, useCallback } from "react";
 import { authenticate } from "../shopify.server";
@@ -27,11 +30,17 @@ import {
   GiftCardIcon,
   CaretDownIcon,
   CaretUpIcon,
+   GiftCardFilledIcon,
+    MaximizeIcon,
+      MinimizeIcon,
+      DiscountIcon,
+      SettingsIcon
 } from "@shopify/polaris-icons";
 import { Icon } from "@shopify/polaris";
 import ProductPickerModal from "./components/ProductPickerModal";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import CollectionPickerModal from "./components/CollectionPickerModal";
+import Colabssiblecom from "./components/Colabssiblecom";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -81,6 +90,12 @@ export default function CampaignIndexTable() {
   const [saveBarOpen, setSaveBarOpen] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(null);
   const shopify = useAppBridge();
+
+
+  const [shakeSaveBar, setShakeSaveBar] = useState(false);
+
+
+
 
   // ------------------------------------------------------------------
   // LOAD CAMPAIGNS FROM METAFIELD
@@ -610,9 +625,12 @@ const renderBxgyEditor = () => {
         )}
       </div>
 
+
+
       {/* ---------------- GET SECTION (Always visible) ---------------- */}
       {/* ---------------- GET SECTION (Always visible) ---------------- */}
 <div style={{ marginTop: "1.5rem" }}>
+  <Divider borderColor="border" />
   <Text variant="headingSm" fontWeight="bold">
     Get Reward (Y)
   </Text>
@@ -664,7 +682,7 @@ const renderBxgyEditor = () => {
                 objectFit: "cover",
               }}
             />
-            <Text>{p.title}</Text>
+            <Text> {p.productTitle ? `${p.productTitle} — ${p.title}` : p.title}</Text>
           </div>
 
           <Button
@@ -801,16 +819,29 @@ const renderBxgyEditor = () => {
     return (
       <Page
         title="Edit Campaign"
-        backAction={{
-          content: "Back",
-          onAction: () => setEditingCampaign(null),
-        }}
+       backAction={{
+  content: "Back",
+  onAction: () => {
+    if (shopify?.saveBar) shopify.saveBar.hide("campaign-save-bar");
+    setSaveBarOpen(false);
+    setEditingCampaign(null);
+  },
+}}
+
       >
         <Layout>
           {/* -------------------------------------------------
              LEFT SECTION
           ------------------------------------------------- */}
           <Layout.Section>
+  <BlockStack gap="400">
+<Colabssiblecom 
+title="Rewards"
+ description="Choose the product that the customer buys and the free gift they get along with it."
+        icon={DiscountIcon}
+        
+>
+
             {!isBxgy && (
               <Card sectioned>
                 <Text variant="bodyLg" fontWeight="bold">
@@ -1454,6 +1485,26 @@ const renderBxgyEditor = () => {
                 
               </>
             )}
+   </Colabssiblecom>
+          {/* ------------------------------------------------------------------ */}
+{/* Collapsible Info Section (Modern Polaris) */}
+{/* ------------------------------------------------------------------ */}
+            <Colabssiblecom
+            title="Settings"
+            description="Manage start and end dates for this campaign."
+            icon={SettingsIcon}>
+      <BlockStack gap="200"  paddingBlockStart="300">
+        <Text as="p">
+          Use this section for additional help or campaign setup tips.
+          You can include details about how “Buy X Get Y” works, milestone
+          examples, or marketing best practices.
+        </Text>
+        <Link url="https://help.shopify.com/en/manual/discounts" target="_blank">
+          Learn more about Shopify discount campaigns
+        </Link>
+      </BlockStack>
+    </Colabssiblecom>
+    </BlockStack>
           </Layout.Section>
 
           {/* -------------------------------------------------
@@ -1687,6 +1738,8 @@ const renderBxgyEditor = () => {
 
         <Box paddingBlockEnd="600" />
 
+
+
         <SaveBar
           id="campaign-save-bar"
           open={saveBarOpen}
@@ -1702,7 +1755,10 @@ const renderBxgyEditor = () => {
           <button onClick={handleDiscardCampaign}>
             Discard
           </button>
+
+
         </SaveBar>
+        
       </Page>
     );
   }
