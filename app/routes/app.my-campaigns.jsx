@@ -41,6 +41,7 @@ import ProductPickerModal from "./components/ProductPickerModal";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import CollectionPickerModal from "./components/CollectionPickerModal";
 import Colabssiblecom from "./components/Colabssiblecom";
+import ActiveDatesPicker from "./components/ActiveDatesPicker";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -94,6 +95,11 @@ export default function CampaignIndexTable() {
 
   const [shakeSaveBar, setShakeSaveBar] = useState(false);
 
+// Inside CampaignIndexTable component
+const [activeDates, setActiveDates] = useState({
+  start: { date: null, time: null },
+  end: null,
+});
 
 
 
@@ -139,6 +145,10 @@ export default function CampaignIndexTable() {
         trackType: editingCampaign.trackType || "cart",
         goals: editingCampaign.goals || [],
         campaignType: editingCampaign.campaignType || "tiered", // <-- important for BXGY mode
+         activeDates: editingCampaign.activeDates || {
+        start: { date: null, time: null },
+        end: null,
+      },
       };
 
       setName(snap.campaignName);
@@ -154,6 +164,7 @@ export default function CampaignIndexTable() {
 });
 
       setSaveBarOpen(false);
+          setActiveDates(snap.activeDates); 
     }
   }, [editingCampaign]);
 
@@ -173,6 +184,7 @@ useEffect(() => {
     trackType: selected,
     goals,
     campaignType: editingCampaign?.campaignType || "tiered",
+    activeDates,
   };
 
   const changed =
@@ -180,7 +192,7 @@ useEffect(() => {
 
   // Only show SaveBar if there are *real* changes
   setSaveBarOpen(changed);
-}, [name, status, selected, goals, initialSnapshot, editingCampaign]);
+}, [name, status, selected, goals, activeDates, initialSnapshot, editingCampaign]);
 
 
   // ------------------------------------------------------------------
@@ -194,6 +206,7 @@ useEffect(() => {
       trackType: selected,
       goals,
       campaignType: editingCampaign?.campaignType || "tiered",
+       activeDates, // ✅ Add this line
     };
 
     const res = await fetch("/api/save-campaign", {
@@ -1493,16 +1506,10 @@ title="Rewards"
             title="Settings"
             description="Manage start and end dates for this campaign."
             icon={SettingsIcon}>
-      <BlockStack gap="200"  paddingBlockStart="300">
-        <Text as="p">
-          Use this section for additional help or campaign setup tips.
-          You can include details about how “Buy X Get Y” works, milestone
-          examples, or marketing best practices.
-        </Text>
-        <Link url="https://help.shopify.com/en/manual/discounts" target="_blank">
-          Learn more about Shopify discount campaigns
-        </Link>
-      </BlockStack>
+      <ActiveDatesPicker
+ value={activeDates}
+  onChange={(dates) => setActiveDates(dates)}
+  />
     </Colabssiblecom>
     </BlockStack>
           </Layout.Section>

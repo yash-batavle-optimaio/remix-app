@@ -139,6 +139,7 @@ export const action = async ({ request }) => {
   // 3️⃣ Get the new campaign from frontend
   const newCampaign = await request.json();
   console.log("🆕 Incoming campaign:", newCampaign);
+  console.log("🆕 Incoming campaign date and time:", newCampaign.activeDates);
 
   // 4️⃣ Update or add campaign
   const idx = campaigns.findIndex((c) => c.id === newCampaign.id);
