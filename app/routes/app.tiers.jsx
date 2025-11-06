@@ -17,7 +17,7 @@ import {
 
 const NAMESPACE = "optimaio_cart";
 const KEY = "discount_tiers";
-const DISCOUNT_FUNCTION_ID = "0199ccbf-1d9a-7579-9974-e6d1827160f5"; // your Function ID
+const DISCOUNT_FUNCTION_ID = process.env.TIERED_DISCOUNT_FUNCTION_ID;// your Function ID
 const DISCOUNT_TITLE = "Optimaio Automatic Tier Discount";
 
 /* ------------------ Helper: Save metafield ------------------ */

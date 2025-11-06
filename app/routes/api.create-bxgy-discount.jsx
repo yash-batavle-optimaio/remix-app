@@ -27,7 +27,7 @@ async function setMetafield(admin, shopId, key, valueObj) {
 }
 
 /* ------------------ BXGY Discount Setup ------------------ */
-const DISCOUNT_FUNCTION_ID = "019a15db-3446-745a-907d-f91e801e8fb5"; // 👈 your Buy X Get Y function
+const DISCOUNT_FUNCTION_ID = process.env.BXGY_FUNCTION_ID; // 👈 your Buy X Get Y function
 const DISCOUNT_TITLE = "Optimaio Buy X Get Y Discount";
 
 /* ------------------ Ensure BXGY Discount Exists ------------------ */

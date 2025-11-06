@@ -27,7 +27,7 @@ async function setMetafield(admin, shopId, key, valueObj) {
 }
 
 /* ------------------ Helper: Ensure Automatic Discount Exists ------------------ */
-const DISCOUNT_FUNCTION_ID = "0199ccbf-1d9a-7579-9974-e6d1827160f5"; // same as tiers.jsx
+const DISCOUNT_FUNCTION_ID = process.env.TIERED_DISCOUNT_FUNCTION_ID; // same as tiers.jsx
 const DISCOUNT_TITLE = "Optimaio Automatic Tier Discount";
 
 async function ensureAutomaticDiscountExists(admin) {

@@ -74,7 +74,7 @@ async function getDiscountNodeId(admin) {
     console.log("🔍 Discount nodes found:", JSON.stringify(nodes, null, 2));
 
     // Match your app’s unique function ID or title
-    const targetFunctionId = "019a15db-3446-745a-907d-f91e801e8fb5";
+    const targetFunctionId = process.env.BXGY_FUNCTION_ID;
 
    const foundNode =
   nodes.find((edge) => {

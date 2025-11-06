@@ -197,7 +197,18 @@ export default function ActiveDatesPicker({ value, onChange }) {
 
   const [selectedStart, setSelectedStart] = useState({ start: today, end: today });
   const [selectedEnd, setSelectedEnd] = useState(null);
-  const [startTime, setStartTime] = useState("09:00 AM");
+ // Format current time as "hh:mm AM/PM"
+function getCurrentTime12h() {
+  const now = new Date();
+  let hours = now.getHours();
+  const minutes = now.getMinutes();
+  const period = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${hours}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+const [startTime, setStartTime] = useState(getCurrentTime12h());
+
   const [endTime, setEndTime] = useState("11:00 PM");
   const [hasEndDate, setHasEndDate] = useState(false);
 
