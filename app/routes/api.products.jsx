@@ -59,7 +59,10 @@ export const loader = async ({ request }) => {
       };
     });
 
-    return Response.json(products);
+    return json(
+      { success: true, products },
+      { headers: { "Content-Type": "application/json" } }
+    );
   } catch (err) {
     console.error("❌ Loader failed:", err);
     return Response.json(
