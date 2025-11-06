@@ -59,8 +59,8 @@ export const loader = async ({ request }) => {
       };
     });
 
-    return json(
-      { success: true, products },
+     return new Response(
+      JSON.stringify({ success: true, products }),
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
