@@ -36,10 +36,11 @@ export default function ProductPickerModal({
       try {
         const res = await fetch("/api/products");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const valid = Array.isArray(data) ? data : [];
-        setProducts(valid);
-        setFilteredProducts(valid);
+   const data = await res.json();
+const valid = Array.isArray(data.products) ? data.products : [];
+setProducts(valid);
+setFilteredProducts(valid);
+
 
         // Prepare options for Autocomplete
         const opts = valid.map((p) => ({
