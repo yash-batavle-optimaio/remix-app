@@ -20,8 +20,9 @@ api_version = "2025-10"
   uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
-  topics = ["metafield_definitions/update"]
+  topics = ["shop/update"]
   uri = "/webhooks/app/metafields-update"
+  metafield_namespaces = ["optimaio_cart"]
 
   [app_proxy]
 url = "/optimaio-cart"

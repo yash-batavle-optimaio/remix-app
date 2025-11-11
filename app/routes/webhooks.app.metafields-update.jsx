@@ -16,7 +16,8 @@ export const action = async ({ request }) => {
     throw new Response();
   }
 
-  if (topic === "METAFIELD_DEFINITIONS_UPDATE") {
+  if (topic === "SHOP_UPDATE") {
+    console.log("🎯 Shop metafields:");
     try {
       // Example: query metafields for your shop
       const response = await admin.graphql(
@@ -37,6 +38,7 @@ export const action = async ({ request }) => {
         }`
       );
 
+      
       const data = await response.json();
       console.log("🎯 Shop metafields:", JSON.stringify(data, null, 2));
     } catch (err) {
