@@ -240,6 +240,28 @@ const [startTime, setStartTime] = useState(getCurrentTime12h());
     }
   }, [value]);
 
+  /** 🔄 Auto-initialize default date/time on first load if empty */
+useEffect(() => {
+  // If parent didn’t pass any value yet, set defaults
+  if (!value?.start?.date) {
+    const now = new Date();
+    const defaultDate = formatLocalYMD(now);
+    const defaultTime = getCurrentTime12h();
+
+    // Update local state
+    setSelectedStart({ start: now, end: now });
+    setStartTime(defaultTime);
+
+    // Emit to parent immediately
+    onChange?.({
+      start: { date: defaultDate, time: defaultTime },
+      end: { date: null, time: null },
+      hasEndDate: false,
+    });
+  }
+}, []); // run only once
+
+
   /** Emit to parent */
   const emitChange = useCallback(
     (startObj, sTime, endFlag, endObj, eTime) => {

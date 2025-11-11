@@ -109,6 +109,163 @@ export default function CampaignIndexTable() {
 
   const [isInitialized, setIsInitialized] = useState(false);
 
+const [tieredErrors, setTieredErrors] = useState({}); // { [goalId]: { target, products, giftQty, discountValue, discountType } }
+const [tieredGeneralErrors, setTieredGeneralErrors] = useState([]); // e.g., ["Add at least one goal"]
+
+
+  const [bxgyErrors, setBxgyErrors] = useState({});
+
+  const [nameError, setNameError] = useState("");
+
+
+  function validateTiered(goals = [], trackType = "cart") {
+  const perGoal = {}; // { [id]: { field: "error" } }
+  const general = [];
+
+  if (!goals.length) {
+    general.push("Add at least one goal.");
+    return { perGoal, general };
+  }
+
+  // target checks (required, positive, integer for quantity)
+  const targets = [];
+  goals.forEach((g) => {
+    const errs = {};
+    const t = Number(g.target);
+
+    if (!Number.isFinite(t) || t <= 0) {
+      errs.target = "Target is required and must be greater than 0";
+    } else {
+      // Save for global ascending check
+      targets.push({ id: g.id, value: t });
+      if (trackType === "quantity" && !Number.isInteger(t)) {
+        errs.target = "Target must be a whole number (quantity)";
+      }
+    }
+
+    // per-type checks
+    if (g.type === "free_product") {
+      if (!Array.isArray(g.products) || g.products.length === 0) {
+        errs.products = "Select at least one gift product";
+      }
+      if (!g.giftQty || g.giftQty <= 0) {
+        errs.giftQty = "Gift quantity must be at least 1";
+      }
+    }
+
+    if (g.type === "order_discount") {
+      const validTypes = ["percentage", "amount"];
+      if (!validTypes.includes(g.discountType)) {
+        errs.discountType = "Choose a discount type";
+      }
+      const v = Number(g.discountValue);
+      if (g.discountType === "percentage") {
+        if (!Number.isFinite(v) || v <= 0 || v > 100) {
+          errs.discountValue = "Enter a % between 1 and 100";
+        }
+      } else if (g.discountType === "amount") {
+        if (!Number.isFinite(v) || v <= 0) {
+          errs.discountValue = "Enter an amount greater than 0";
+        }
+      }
+    }
+
+    // free_shipping has no extra fields
+
+    if (Object.keys(errs).length) perGoal[g.id] = errs;
+  });
+
+
+  
+
+ // 📈 Global ascending check
+  if (targets.length > 1) {
+    // Sort by user-defined order (not automatically by value)
+    for (let i = 1; i < goals.length; i++) {
+      const prev = Number(goals[i - 1].target);
+      const curr = Number(goals[i].target);
+
+      // Only check valid numbers
+      if (Number.isFinite(prev) && Number.isFinite(curr)) {
+        if (curr <= prev) {
+          general.push(
+            `Milestone ${i + 1} must be greater than Milestone ${i} .`
+                    //  `Milestone ${i + 1} (${curr}) must be greater than Milestone ${i} (${prev}).`
+          );
+        }
+      }
+    }
+
+    // Check for duplicates or wrong ordering overall
+    const ordered = [...targets].sort((a, b) => a.value - b.value);
+    for (let i = 0; i < ordered.length; i++) {
+      if (i > 0 && ordered[i].value <= ordered[i - 1].value) {
+        general.push("Milestone targets must be strictly increasing (no duplicates).");
+        break;
+      }
+    }
+  }
+
+
+  return { perGoal, general };
+}
+
+
+const validateBxgy = (goal) => {
+  const errors = {};
+
+  if (!goal) return errors;
+
+  // Quantities
+  if (!goal.buyQty || goal.buyQty <= 0)
+    errors.buyQty = "Buy quantity must be greater than 0";
+
+  if (!goal.getQty || goal.getQty <= 0)
+    errors.getQty = "Get quantity must be greater than 0";
+
+  // Spend / Collection validations
+  if (goal.bxgyMode === "spend_any_collection") {
+    if (!goal.spendAmount || goal.spendAmount <= 0)
+      errors.spendAmount = "Spend amount must be greater than 0";
+    if (!goal.buyCollections?.length)
+      errors.buyCollections = "Select at least one collection";
+  }
+
+  if (goal.bxgyMode === "product" && !goal.buyProducts?.length)
+    errors.buyProducts = "Select at least one product to buy";
+
+  if (goal.bxgyMode === "collection" && !goal.buyCollections?.length)
+    errors.buyCollections = "Select at least one collection to buy";
+
+  // Reward validation (always required)
+  if (!goal.getProducts?.length)
+    errors.getProducts = "Select at least one reward product";
+
+   const validDiscountTypes = ["free_product", "percentage", "fixed"];
+  if (!validDiscountTypes.includes(goal.discountType)) {
+    errors.discountType = "Choose a valid discount type";
+  } else if (goal.discountType === "percentage") {
+    const v = Number(goal.discountValue);
+    if (!Number.isFinite(v) || v <= 0 || v > 100) {
+      errors.discountValue = "Enter a % between 1 and 100";
+    }
+  } else if (goal.discountType === "fixed") {
+    const v = Number(goal.discountValue);
+    if (!Number.isFinite(v) || v <= 0) {
+      errors.discountValue = "Enter a fixed amount greater than 0";
+    }
+  } else if (goal.discountType === "free_product") {
+    // Optional normalization (keeps UI consistent)
+    // If you want to enforce 100% for free, uncomment next two lines:
+    // if (goal.discountValue !== 100) {
+    //   errors.discountValue = "Free product implies 100% off";
+    // }
+  }
+
+
+  return errors;
+};
+
   // ------------------------------------------------------------------
   // LOAD CAMPAIGNS FROM METAFIELD
   // ------------------------------------------------------------------
@@ -212,37 +369,34 @@ const defaultContent = {
   // ------------------------------------------------------------------
   // DETECT UNSAVED CHANGES
   // ------------------------------------------------------------------
-  useEffect(() => {
-    // Wait until the initial snapshot is fully set
-    if (!initialSnapshot) return;
+ useEffect(() => {
+  if (!isInitialized || !initialSnapshot) return;
 
-    const currentSnapshot = {
-      campaignName: name,
-      status,
-      trackType: selected,
-      goals,
-      campaignType: editingCampaign?.campaignType || "tiered",
-      activeDates,
-    };
+  const changed =
+    name !== initialSnapshot.campaignName ||
+    status !== initialSnapshot.status ||
+    selected !== initialSnapshot.trackType ||
+    JSON.stringify(goals) !== JSON.stringify(initialSnapshot.goals) ||
+    JSON.stringify(activeDates) !== JSON.stringify(initialSnapshot.activeDates) ||
+    JSON.stringify(content) !== JSON.stringify(initialSnapshot.content);
 
-    const changed =
-      JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot);
+  setSaveBarOpen(changed);
+}, [
+  isInitialized,
+  name,
+  status,
+  selected,
+  goals,
+  activeDates,
+  content,
+  initialSnapshot,
+]);
 
-    // Only show SaveBar if there are *real* changes
-    setSaveBarOpen(changed);
-  }, [
-    name,
-    status,
-    selected,
-    goals,
-    activeDates,
-    initialSnapshot,
-    editingCampaign,
-  ]);
 
   // ------------------------------------------------------------------
   // SAVE CAMPAIGN
   // ------------------------------------------------------------------
+  const tzOffsetMinutes = -new Date().getTimezoneOffset(); 
   const handleSaveCampaign = async () => {
     const campaignData = {
       id: editingCampaign?.id || `cmp_${Date.now()}`,
@@ -253,7 +407,39 @@ const defaultContent = {
       campaignType: editingCampaign?.campaignType || "tiered",
       activeDates, // ✅ Add this line
         content, // ✅ new
+          tzOffsetMinutes,
     };
+
+
+     // 🧩 Validate campaign name
+if (!campaignData.campaignName || campaignData.campaignName.length < 3) {
+  setNameError("Enter a campaign name (at least 3 characters).");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  return;
+} else {
+  setNameError("");
+}
+
+
+     if (campaignData.campaignType === "bxgy") {
+    const errors = validateBxgy(goals[0]);
+    if (Object.keys(errors).length > 0) {
+      setBxgyErrors(errors);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return; // stop save
+    } else {
+      setBxgyErrors({});
+    }
+  } else {
+    // ✅ Tiered validation
+    const { perGoal, general } = validateTiered(goals, selected);
+    setTieredErrors(perGoal);
+    setTieredGeneralErrors(general);
+    if (general.length || Object.keys(perGoal).length) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+  }
 
     const res = await fetch("/api/save-campaign", {
       method: "POST",
@@ -346,7 +532,11 @@ const defaultContent = {
 
   // BXGY EDITOR (Buy X Get Y) — Enhanced with Product / Collection / All Modes
   // BXGY EDITOR (Buy X Get Y) — Clean, Logical Structure
-  const renderBxgyEditor = () => {
+  const renderBxgyEditor = (bxgyErrors, setBxgyErrors) => {
+
+    
+
+
     const bxgyGoal = goals[0] || {
       id: `BXGY_${Date.now()}`,
       bxgyMode: "product", // "product" | "collection" | "all"
@@ -363,6 +553,9 @@ const defaultContent = {
 
     return (
       <Card sectioned>
+
+  
+
         <Text variant="headingSm" fontWeight="bold">
           Buy X Get Y Type
         </Text>
@@ -406,6 +599,7 @@ const defaultContent = {
             >
               Spend X on Any Collection
             </Button>
+            
 
             <Button
               pressed={bxgyGoal.bxgyMode === "collection"}
@@ -462,6 +656,7 @@ const defaultContent = {
                 onChange={(val) =>
                   setGoals([{ ...bxgyGoal, buyQty: Number(val) }])
                 }
+                 error={bxgyErrors.buyQty}
               />
             </div>
           )}
@@ -478,6 +673,12 @@ const defaultContent = {
               >
                 Select Buy Products
               </Button>
+              {bxgyErrors.buyProducts && (
+  <Text tone="critical" variant="bodySm">
+    {bxgyErrors.buyProducts}
+  </Text>
+)}
+
 
               {(bxgyGoal.buyProducts || []).length > 0 && (
                 <div style={{ marginTop: "0.75rem" }}>
@@ -551,6 +752,7 @@ const defaultContent = {
                   setGoals([{ ...bxgyGoal, spendAmount: Number(val) }])
                 }
                 helpText="Customer must spend at least this amount in selected collections."
+                error={bxgyErrors.spendAmount}
               />
 
               {/* Select collections */}
@@ -565,6 +767,12 @@ const defaultContent = {
               >
                 Select Eligible Collections
               </Button>
+              {bxgyErrors.buyCollections && (
+  <Text tone="critical" variant="bodySm">
+    {bxgyErrors.buyCollections}
+  </Text>
+)}
+
 
               {(bxgyGoal.buyCollections || []).length > 0 && (
                 <div style={{ marginTop: "0.75rem" }}>
@@ -636,6 +844,12 @@ const defaultContent = {
               >
                 Select Buy Collections
               </Button>
+              {bxgyErrors.buyCollections && (
+  <Text tone="critical" variant="bodySm">
+    {bxgyErrors.buyCollections}
+  </Text>
+)}
+
 
               {(bxgyGoal.buyCollections || []).length > 0 && (
                 <div style={{ marginTop: "0.75rem" }}>
@@ -718,6 +932,7 @@ const defaultContent = {
               onChange={(val) =>
                 setGoals([{ ...bxgyGoal, getQty: Number(val) }])
               }
+                error={bxgyErrors.getQty}
             />
           </div>
           <Button
@@ -731,6 +946,12 @@ const defaultContent = {
           >
             Select Reward Products
           </Button>
+          {bxgyErrors.getProducts && (
+  <Text tone="critical" variant="bodySm">
+    {bxgyErrors.getProducts}
+  </Text>
+)}
+
 
           {(bxgyGoal.getProducts || []).length > 0 && (
             <div style={{ marginTop: "0.75rem" }}>
@@ -854,6 +1075,8 @@ const defaultContent = {
                 onChange={(val) =>
                   setGoals([{ ...bxgyGoal, discountValue: Number(val) }])
                 }
+               error={bxgyErrors.discountValue}
+
               />
             </Box>
           )}
@@ -938,6 +1161,13 @@ const defaultContent = {
               >
                 {!isBxgy && (
                   <Card sectioned>
+                          {!isBxgy && tieredGeneralErrors.length > 0 && (
+  <Box padding="200" background="bg-surface-success" borderRadius="200" tone="critical">
+    {tieredGeneralErrors.map((msg, i) => (
+      <Text key={i} tone="critical" variant="bodySm">{msg}</Text>
+    ))}
+  </Box>
+)}
                     <Text variant="bodyLg" fontWeight="bold">
                       Campaign ID:
                     </Text>
@@ -1037,6 +1267,7 @@ const defaultContent = {
                                           ),
                                         )
                                       }
+                                        error={tieredErrors[goal.id]?.target}
                                     />
                                   </div>
                                 </Layout.Section>
@@ -1074,7 +1305,7 @@ const defaultContent = {
                                       </BlockStack>
 
                                       <ButtonGroup>
-                                        <Button plain>Done</Button>
+                                        {/* <Button plain>Done</Button> */}
                                         <Tooltip content="Delete">
                                           <Button
                                             tone="critical"
@@ -1123,8 +1354,14 @@ const defaultContent = {
                                                 setPickerOpen(true);
                                               }}
                                             >
+                                              
                                               Add a product
                                             </Button>
+
+                                            {tieredErrors[goal.id]?.products && (
+  <Text tone="critical" variant="bodySm">{tieredErrors[goal.id].products}</Text>
+)}
+
                                           </div>
 
                                           <div
@@ -1170,7 +1407,7 @@ const defaultContent = {
                                                   −
                                                 </Button>
 
-                                                <Button disabled>
+                                                <Button >
                                                   {goal.giftQty}
                                                 </Button>
 
@@ -1192,6 +1429,12 @@ const defaultContent = {
                                                   +
                                                 </Button>
                                               </ButtonGroup>
+                                              {tieredErrors[goal.id]?.giftQty && (
+  <Box paddingBlockStart="200">
+    <Text tone="critical" variant="bodySm">{tieredErrors[goal.id].giftQty}</Text>
+  </Box>
+)}
+
                                             </div>
                                           </div>
                                         </>
@@ -1352,7 +1595,13 @@ const defaultContent = {
                                                 Amount off
                                               </Button>
                                             </ButtonGroup>
+
+                                            
                                           </div>
+                                          
+
+    
+
 
                                           <div
                                             style={{
@@ -1362,6 +1611,7 @@ const defaultContent = {
                                             <Text fontWeight="bold">
                                               Enter the value
                                             </Text>
+                                            
 
                                             <TextField
                                               prefix={
@@ -1384,6 +1634,13 @@ const defaultContent = {
                                                 )
                                               }
                                             />
+                                                                                  {tieredErrors[goal.id]?.discountValue && (
+  <Box paddingBlockStart="200">
+    <Text tone="critical" variant="bodySm">
+      {tieredErrors[goal.id].discountValue}
+    </Text>
+  </Box>
+)}
                                           </div>
                                         </div>
                                       )}
@@ -1431,7 +1688,7 @@ const defaultContent = {
                 {/* BXGY block (single rule). Shown only if campaignType is bxgy */}
                 {isBxgy && (
                   <>
-                    {renderBxgyEditor()}
+                    {renderBxgyEditor(bxgyErrors, setBxgyErrors)}
 
                     {/* Picker for BXGY: can assign buyProducts/getProducts */}
                   </>
@@ -1445,7 +1702,7 @@ const defaultContent = {
               description="Customize content shown for this campaign and manage translations to languages."
               icon={BlogIcon}>
 
-<ContentEditor value={content} onChange={setContent} />
+<ContentEditor value={content} onChange={setContent}   type={isBxgy ? "bxgy" : "tiered"}  />
               </Colabssiblecom>
 
               {/* ------------------------------------------------------------------ */}
@@ -1486,6 +1743,7 @@ const defaultContent = {
                       label="Campaign name"
                       value={name}
                       onChange={setName}
+                        error={nameError}
                     />
                   </div>
                 </div>
