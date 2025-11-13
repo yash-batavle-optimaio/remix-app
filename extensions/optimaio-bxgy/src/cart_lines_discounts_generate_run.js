@@ -68,8 +68,37 @@ export function cartLinesDiscountsGenerateRun(input) {
 
 
     campaigns.forEach((campaign) => {
-      const { campaignName, goals, priority } = campaign;
+      const { campaignName, goals, priority, activeDates, tzOffsetMinutes } = campaign;
       if (!goals?.length) return;
+
+      /* =========================================================
+         🕒 DATE FILTER — Only run if campaign is active today
+         ========================================================= */
+      const shopDateStr = input.shop?.localTime?.date; // e.g. "2025-11-11"
+      const shopNow = shopDateStr ? new Date(`${shopDateStr}T00:00:00Z`) : new Date();
+
+      // Apply campaign's timezone offset (minutes)
+      const offsetMs = (tzOffsetMinutes || 0) * 60 * 1000;
+      const nowLocal = new Date(shopNow.getTime() + offsetMs);
+
+      const startDate = activeDates?.start?.date
+        ? new Date(`${activeDates.start.date}T00:00:00Z`)
+        : null;
+      const endDate = activeDates?.hasEndDate
+        ? new Date(`${activeDates.end?.date}T23:59:59Z`)
+        : null;
+
+      const startLocal = startDate ? new Date(startDate.getTime() + offsetMs) : null;
+      const endLocal = endDate ? new Date(endDate.getTime() + offsetMs) : null;
+
+      // Skip if not within active window
+      if (!startLocal) return;
+      if (nowLocal < startLocal) return;     // Not started yet
+      if (endLocal && nowLocal > endLocal) return; // Expired
+
+      /* =========================================================
+         🧠 Continue with BXGY evaluation as before
+         ========================================================= */
 
       goals.forEach((goal) => {
         const bxgyMode = goal.bxgyMode || "product";
@@ -82,9 +111,7 @@ export function cartLinesDiscountsGenerateRun(input) {
         const getQtyLimit = parseInt(goal.getQty || 1, 10);
         const spendAmount = parseFloat(goal.spendAmount || 0);
 
-        /* 🚫 Skip campaign if buy products/collections already locked */
-       /* ✅ Allow multiple campaigns to apply independently */
-console.log(`⚙️ Evaluating campaign '${campaignName}' (multiple discounts allowed).`);
+        console.log(`⚙️ Evaluating campaign '${campaignName}' (active today)`);
 
 
         let conditionMet = false;
@@ -182,8 +209,13 @@ case "storewide": {
 
           for (const line of input.cart.lines) {
             const pid = line.merchandise?.id;
+
+              const isGift =
+    line.attribute?.key === "isBXGYGift" && line.attribute?.value === "true";
+
             if (
               getProductIds.includes(pid) &&
+              isGift && 
               !lockedGifts.has(pid) &&
               discountedCount < getQtyLimit &&
               !discountedLineIds.has(line.id)

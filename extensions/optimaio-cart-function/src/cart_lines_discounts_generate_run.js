@@ -24,68 +24,7 @@ export function cartLinesDiscountsGenerateRun(input) {
 
   const ops = [];
 
-  /* =========================================================
-     🟢 OLD FUNCTIONALITY — tier-based discounts
-     ========================================================= */
-  let tiers = [];
-  try {
-    const parsed = JSON.parse(input.shop?.metafield?.value || "{}");
-    tiers = parsed.tiers || [];
-  } catch {}
 
-  if (tiers.length) {
-    const totalQty = input.cart.lines.reduce((s, l) => s + (l.quantity ?? 1), 0);
-    const applied = tiers.reduce((best, t) => (totalQty >= t.minQty ? t : best), null);
-
-    if (applied) {
-      // --- 1A. Percentage discount ---
-      if (applied.reward === "percentage" && hasOrder) {
-        const pct = parseFloat(applied.value);
-        if (!isNaN(pct)) {
-          ops.push({
-            orderDiscountsAdd: {
-              candidates: [
-                {
-                  message: `${pct}% OFF`,
-                  targets: [{ orderSubtotal: { excludedCartLineIds: [] } }],
-                  value: { percentage: { value: pct } },
-                },
-              ],
-              selectionStrategy: OrderDiscountSelectionStrategy.First,
-            },
-          });
-        }
-      }
-
-      // --- 1B. Free product variant ---
-      if (applied.reward === "free_product" && hasProduct) {
-        const variantId = applied.value;
-        const giftLine = input.cart.lines.find(
-          (line) =>
-            line.merchandise.__typename === "ProductVariant" &&
-            line.merchandise.id === variantId
-        );
-        if (giftLine) {
-          ops.push({
-            productDiscountsAdd: {
-              candidates: [
-                {
-                  message: "Free Gift!",
-                  targets: [{ cartLine: { id: giftLine.id } }],
-                  value: { percentage: { value: 100 } },
-                },
-              ],
-              selectionStrategy: ProductDiscountSelectionStrategy.First,
-            },
-          });
-        }
-      }
-    }
-  }
-
-  /* =========================================================
-     🟣 NEW FUNCTIONALITY — campaign-based discounts
-     ========================================================= */
    /* =========================================================
      🟣 NEW FUNCTIONALITY — campaign-based discounts
      ========================================================= */
@@ -125,8 +64,22 @@ if (campaigns.length) {
     }, 0);
 
     campaigns.forEach((campaign) => {
-      const { trackType, campaignName, goals } = campaign;
-      if (!goals?.length) return;
+      const { trackType, campaignName, goals, activeDates } = campaign;
+  if (!goals?.length) return;
+
+  // --- DATE FILTER: only apply active campaigns ---
+  const now = new Date(input.shop?.localTime?.date || new Date());
+  const startDate = activeDates?.start?.date
+    ? new Date(activeDates.start.date)
+    : null;
+  const endDate = activeDates?.hasEndDate
+    ? new Date(activeDates.end?.date)
+    : null;
+
+  if (!startDate) return;
+  if (now < startDate) return; // campaign not started yet
+  if (endDate && now > endDate) return; // campaign expired
+
 
 
 

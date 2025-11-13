@@ -3072,9 +3072,9 @@ export enum WeightUnit {
 export type CartDeliveryRunInputVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CartDeliveryRunInput = { __typename?: 'Input', shop: { __typename?: 'Shop', metafield?: { __typename?: 'Metafield', value: string } | null }, cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number }>, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };
+export type CartDeliveryRunInput = { __typename?: 'Input', shop: { __typename?: 'Shop', metafield?: { __typename?: 'Metafield', value: string } | null, localTime: { __typename?: 'LocalTime', date: any } }, cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number }>, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };
 
 export type RunInputVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunInput = { __typename?: 'Input', shop: { __typename?: 'Shop', metafield?: { __typename?: 'Metafield', value: string } | null }, cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number, cost: { __typename?: 'CartLineCost', amountPerQuantity: { __typename?: 'MoneyV2', amount: any } }, attribute?: { __typename?: 'Attribute', key: string, value?: string | null } | null, merchandise: { __typename?: 'CustomProduct' } | { __typename?: 'ProductVariant', id: string, title?: string | null } }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };
+export type RunInput = { __typename?: 'Input', shop: { __typename?: 'Shop', metafield?: { __typename?: 'Metafield', value: string } | null, localTime: { __typename?: 'LocalTime', date: any } }, cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number, cost: { __typename?: 'CartLineCost', amountPerQuantity: { __typename?: 'MoneyV2', amount: any } }, attribute?: { __typename?: 'Attribute', key: string, value?: string | null } | null, merchandise: { __typename?: 'CustomProduct' } | { __typename?: 'ProductVariant', id: string, title?: string | null } }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };

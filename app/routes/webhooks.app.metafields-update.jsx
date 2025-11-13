@@ -7,8 +7,8 @@ export const action = async ({ request }) => {
   // 🧠 authenticate.webhook now gives you everything you need:
   const { topic, admin, payload, session, shop } = await authenticate.webhook(request);
 
-  console.log(`🧭 ${topic} webhook received for ${shop}`);
-  console.log("📦 Payload:", JSON.stringify(payload, null, 2));
+  // console.log(`🧭 ${topic} webhook received for ${shop}`);
+  // console.log("📦 Payload:", JSON.stringify(payload, null, 2));
 
   // Webhooks can fire even after uninstall — so check for session
   if (!session) {
@@ -17,7 +17,7 @@ export const action = async ({ request }) => {
   }
 
   if (topic === "SHOP_UPDATE") {
-    console.log("🎯 Shop metafields:");
+    // console.log("🎯 Shop metafields:");
     try {
       // Example: query metafields for your shop
       const response = await admin.graphql(
@@ -40,9 +40,9 @@ export const action = async ({ request }) => {
 
       
       const data = await response.json();
-      console.log("🎯 Shop metafields:", JSON.stringify(data, null, 2));
+      // console.log("🎯 Shop metafields:", JSON.stringify(data, null, 2));
     } catch (err) {
-      console.error("🚨 Error querying metafields:", err);
+      // console.error("🚨 Error querying metafields:", err);
     }
   }
 

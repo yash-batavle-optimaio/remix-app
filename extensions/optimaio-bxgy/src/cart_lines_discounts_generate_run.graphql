@@ -3,6 +3,9 @@ query RunInput($collectionIds: [ID!]){
     metafield(namespace: "optimaio_cart", key: "campaigns") {
       value
     }
+    localTime{
+      date
+    }
   }
   cart {
     lines {
@@ -11,7 +14,7 @@ query RunInput($collectionIds: [ID!]){
       cost {
         amountPerQuantity { amount }
       }
-      attribute(key: "isFreeGift") { key value }
+      attribute(key: "isBXGYGift") { key value }
       merchandise {
         ... on ProductVariant {
           id

@@ -3,6 +3,9 @@ query CartDeliveryRunInput {
     metafield(namespace: "optimaio_cart", key: "campaigns") {
       value
     }
+    localTime{
+      date
+    }
   }
   cart {
     lines {

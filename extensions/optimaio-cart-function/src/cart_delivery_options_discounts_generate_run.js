@@ -29,8 +29,29 @@ let activeCampaigns = campaigns.filter((c) => c.status === "active");
 
   // Loop through active campaigns
   activeCampaigns.forEach((campaign) => {
-    const { trackType, goals } = campaign;
+  const { trackType, goals, activeDates, tzOffsetMinutes } = campaign;
     if (!goals?.length) return;
+
+    /* =========================================================
+       🕒 DATE FILTER (Same as product/order discount logic)
+       ========================================================= */
+    const now = new Date(input.shop?.localTime?.date || new Date());
+
+    // Adjust for store timezone (in minutes)
+    const offsetMs = (tzOffsetMinutes || 0) * 60 * 1000;
+    const nowLocal = new Date(now.getTime() + offsetMs);
+
+    const startDate = activeDates?.start?.date
+      ? new Date(activeDates.start.date)
+      : null;
+    const endDate = activeDates?.hasEndDate
+      ? new Date(activeDates.end?.date)
+      : null;
+
+    if (!startDate) return; // no start date defined
+    if (nowLocal < startDate) return; // not started yet
+    if (endDate && nowLocal > endDate) return; // expired
+
 
     // ✅ For now only trackType = "quantity"
     if (trackType !== "quantity") return;

@@ -24,6 +24,15 @@ api_version = "2025-10"
   uri = "/webhooks/app/metafields-update"
   metafield_namespaces = ["optimaio_cart"]
 
+
+
+  [[webhooks.subscriptions]]
+  topics = ["markets/update"]
+  uri = "https://remix-app-rqyv.onrender.com/webhooks/app/markets_team"
+  format = "json"
+
+
+
   [app_proxy]
 url = "/optimaio-cart"
 prefix = "apps"
@@ -31,7 +40,7 @@ subpath = "optimaio-cart"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products,read_discounts,write_discounts,write_cart_transforms,write_app_proxy,read_content"
+scopes = "read_products,write_products,read_discounts,write_discounts,write_cart_transforms,write_app_proxy,read_content,read_markets"
 
 
 [auth]
